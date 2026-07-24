@@ -26,7 +26,7 @@ def client():
 def test_health_endpoint(client):
     """Verify GET /health returns successfully."""
     response = client.get("/health")
-    assert response.status_code in (200, 503)  # 200 if model loaded, 503 if not loaded
+    assert response.status_code == 200  # Readiness details are represented in the response body
     json_data = response.json()
     assert "status" in json_data
     assert "model_loaded" in json_data
@@ -89,3 +89,31 @@ def test_predict_endpoint_invalid_values(client):
     }
     response = client.post("/predict", json=invalid_payload)
     assert response.status_code == 422
+
+
+def test_predict_endpoint_rejects_unknown_categories(client):
+    """Verify strict categorical enums prevent unseen/business-invalid values at the API boundary."""
+    payload = {
+        "gender": "Unknown",
+        "SeniorCitizen": 0,
+        "Partner": "Yes",
+        "Dependents": "No",
+        "tenure": 12,
+        "PhoneService": "Yes",
+        "MultipleLines": "No",
+        "InternetService": "Fiber optic",
+        "OnlineSecurity": "No",
+        "OnlineBackup": "Yes",
+        "DeviceProtection": "No",
+        "TechSupport": "No",
+        "StreamingTV": "Yes",
+        "StreamingMovies": "No",
+        "Contract": "Month-to-month",
+        "PaperlessBilling": "Yes",
+        "PaymentMethod": "Electronic check",
+        "MonthlyCharges": 80.0,
+        "TotalCharges": 960.0,
+    }
+    response = client.post("/predict", json=payload)
+    assert response.status_code == 422
+    assert "gender" in response.text
