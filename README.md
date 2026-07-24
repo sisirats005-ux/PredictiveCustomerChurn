@@ -200,3 +200,23 @@ Evaluation results obtained on a stratified 20% holdout test set:
 - We prioritized **Recall** (sensitivity) and **ROC-AUC** over accuracy because the cost of failing to catch a churner (customer loss + CAC re-acquisition) is higher than the cost of a promotional discount extended to a loyal customer.
 - **Tuned XGBoost** achieves **81.3% Recall** and **0.849 Test ROC-AUC**, successfully identifying roughly 4 in 5 churners.
 - **Model Selection Justification**: Although Logistic Regression achieved a slightly higher cross-validated ROC-AUC, Tuned XGBoost was selected because it achieved higher recall (81.3%), captured more potential churners, modeled complex non-linear interactions, and provided richer SHAP explanations. Since customer churn prediction prioritizes identifying at-risk customers, recall and business impact were considered alongside ROC-AUC.
+
+---
+
+## 12. Senior ML Engineering Review Notes
+
+This repository has been reviewed as an end-to-end churn prediction system. The core design is strong for a portfolio/demo MLOps project: data cleaning, feature engineering, model comparison, explainability artifacts, API serving, dashboarding, containerization, CI, and tests are separated into clear modules. The latest hardening pass focused on production-facing reliability without changing the trained artifacts or existing model outputs.
+
+### Architecture and Production Readiness Improvements
+- **API contract hardening**: FastAPI now validates categorical fields with explicit enums instead of accepting arbitrary strings. This prevents silent one-hot `handle_unknown='ignore'` behavior from masking upstream data quality issues.
+- **Inference explainability parity**: The REST response now exposes the decision threshold, top risk factors, and prioritized recommended action already produced by the inference layer, making the API output consistent with the Streamlit experience.
+- **Feature engineering robustness**: Feature generation now validates required raw columns up front and guards `ChargesRatio` against `0 / 0` edge cases so scoring remains finite for zero-charge/new-customer records.
+- **Container safety**: The Docker runtime now uses an unprivileged user and includes a `/health`-based health check, improving deployment observability and reducing container privilege risk.
+- **Regression coverage**: Tests were added for strict API category validation, clear feature-engineering schema failures, and finite zero-charge ratio handling.
+
+### Recommended Next Steps
+1. Add a lightweight model-card file that records training data date, target definition, validation metrics, threshold policy, limitations, and owner sign-off.
+2. Promote artifacts through an immutable registry path (for example `models/registry/v2/`) and load deployed artifacts by an environment variable such as `MODEL_VERSION`.
+3. Add drift checks for categorical distribution shifts and score distribution shifts before batch outreach campaigns.
+4. Add request/response logging with PII-safe redaction and monitoring around error rates, latency, and score distributions.
+5. Extend CI to include Docker image build validation when artifact size and CI runtime budgets allow it.

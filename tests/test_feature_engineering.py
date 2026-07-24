@@ -213,3 +213,13 @@ class TestCreateFeaturesGeneral:
         assert len(result) == 2
         assert result.loc[0, "LongTermCustomer"] == 0
         assert result.loc[1, "LongTermCustomer"] == 1
+
+    def test_zero_charges_ratio_is_finite(self):
+        df = pd.DataFrame([make_row(tenure=0, MonthlyCharges=0.0, TotalCharges=0.0)])
+        result = create_features(df)
+        assert result.loc[0, "ChargesRatio"] == pytest.approx(0.0)
+
+    def test_missing_required_columns_raise_clear_error(self):
+        df = pd.DataFrame([make_row()]).drop(columns=["PaymentMethod"])
+        with pytest.raises(KeyError, match="Missing required column"):
+            create_features(df)
