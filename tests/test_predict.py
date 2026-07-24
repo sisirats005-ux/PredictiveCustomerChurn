@@ -3,8 +3,8 @@ Tests for src/predict.py — the inference module used by the Streamlit app.
 
 `prepare_customer_frame` is tested directly (pure pandas, no model
 dependency). The full `predict_churn` path additionally requires the
-serialized model artifacts in `models/` (and xgboost installed), so those
-tests are skipped automatically in environments where either is unavailable
+serialized model artifacts in `models/` so those
+tests are skipped automatically in environments where artifacts are unavailable
 rather than failing the whole suite.
 """
 
@@ -18,18 +18,12 @@ from src.predict import prepare_customer_frame, load_artifacts, predict_churn
 MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "models")
 ARTIFACTS_AVAILABLE = all(
     os.path.exists(os.path.join(MODELS_DIR, f))
-    for f in ("best_model.joblib", "preprocessing_pipeline.joblib", "feature_names.joblib")
+    for f in ("logistic_regression_model.joblib", "preprocessing_pipeline.joblib", "feature_names.joblib")
 )
 
-try:
-    import xgboost  # noqa: F401
-    XGBOOST_AVAILABLE = True
-except ImportError:
-    XGBOOST_AVAILABLE = False
-
 requires_artifacts = pytest.mark.skipif(
-    not (ARTIFACTS_AVAILABLE and XGBOOST_AVAILABLE),
-    reason="Serialized model artifacts and/or xgboost are not available in this environment",
+    not ARTIFACTS_AVAILABLE,
+    reason="Serialized Logistic Regression artifacts are not available in this environment",
 )
 
 
@@ -64,12 +58,13 @@ class TestPredictChurnEndToEnd:
         result = predict_churn(customer)
         expected_keys = {
             "churn_probability", "churn_prediction", "risk_tier",
-            "clv", "billing_risk", "high_risk_profile", "persona"
+            "clv", "billing_risk", "high_risk_profile", "persona", "model_confidence"
         }
         assert expected_keys.issubset(set(result.keys()))
         assert 0.0 <= result["churn_probability"] <= 1.0
         assert result["churn_prediction"] in {"Yes", "No"}
         assert result["risk_tier"] in {"Low", "Medium", "High"}
+        assert 0.5 <= result["model_confidence"] <= 1.0
 
     def test_predict_churn_is_deterministic(self, raw_customer_row):
         customer = {k: v for k, v in raw_customer_row.items() if k not in ("customerID", "Churn")}

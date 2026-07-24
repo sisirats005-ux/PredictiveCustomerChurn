@@ -8,6 +8,21 @@ import pandas as pd
 import numpy as np
 
 
+REQUIRED_COLUMNS = [
+    "Partner", "Dependents", "tenure", "PhoneService", "MultipleLines",
+    "InternetService", "OnlineSecurity", "OnlineBackup", "DeviceProtection",
+    "TechSupport", "StreamingTV", "StreamingMovies", "Contract",
+    "PaymentMethod", "MonthlyCharges", "TotalCharges",
+]
+
+
+def validate_feature_inputs(df):
+    """Raise a clear error when required raw columns are missing before feature creation."""
+    missing = [column for column in REQUIRED_COLUMNS if column not in df.columns]
+    if missing:
+        raise KeyError(f"Missing required column(s) for feature engineering: {missing}")
+
+
 def create_features(df):
     """
     Create engineered features from the cleaned Telco Churn DataFrame.
@@ -42,8 +57,19 @@ def create_features(df):
     pd.DataFrame
         DataFrame containing original features alongside newly engineered features.
     """
+    validate_feature_inputs(df)
+
     df_engineered = df.copy()
-    
+
+    # Coerce charge columns defensively so API/dashboard inference and training
+    # share the same numeric behavior even when records arrive as strings.
+    df_engineered["MonthlyCharges"] = pd.to_numeric(
+        df_engineered["MonthlyCharges"], errors="coerce"
+    ).fillna(0.0)
+    df_engineered["TotalCharges"] = pd.to_numeric(
+        df_engineered["TotalCharges"], errors="coerce"
+    ).fillna(0.0)
+
     # 1. ServiceCount: Count active phone/internet/security/streaming lines
     services = [
         (df_engineered['PhoneService'] == 'Yes'),
@@ -127,10 +153,19 @@ def create_features(df):
     df_engineered['CLV'] = df_engineered['MonthlyCharges'] * (df_engineered['tenure'] + contract_bonus)
 
     # 11. ChargesRatio: billing intensity (MonthlyCharges divided by Total + Monthly)
-    df_engineered['ChargesRatio'] = df_engineered['MonthlyCharges'] / (df_engineered['TotalCharges'] + df_engineered['MonthlyCharges'])
+    charges_denominator = df_engineered['TotalCharges'] + df_engineered['MonthlyCharges']
+    df_engineered['ChargesRatio'] = np.where(
+        charges_denominator > 0,
+        df_engineered['MonthlyCharges'] / charges_denominator,
+        0.0
+    )
 
     # 12. BillingRisk: billing friction metric
-    df_engineered['BillingRisk'] = df_engineered['MonthlyCharges'] * (1.0 - df_engineered['AutoPayment']) * (df_engineered['Contract'] == 'Month-to-month').astype(float)
+    df_engineered['BillingRisk'] = (
+        df_engineered['MonthlyCharges']
+        * (1.0 - df_engineered['AutoPayment'])
+        * (df_engineered['Contract'] == 'Month-to-month').astype(float)
+    )
 
     # 13. HighRiskProfile: multi-factor risk segmentation
     risk_factors = (

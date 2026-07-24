@@ -1,356 +1,506 @@
-"""
-ConnectTel Customer Churn Prediction - Streamlit Deployment App.
-
-An interactive dashboard that loads the serialized Logistic Regression model
-and preprocessing pipeline, and provides:
-- A single-customer scoring tool (Churn Probability, Risk Tier, CLV, Billing
-  Risk, top SHAP-aligned risk factors, and a recommended retention action)
-- An Executive Dashboard summarizing risk distribution and expected revenue
-  saved across the full customer base
-"""
+"""Enterprise Streamlit dashboard for ConnectTel churn prediction."""
 
 import json
 import os
+from datetime import datetime
 
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
-from src.predict import load_artifacts, predict_churn, get_decision_threshold
-from src.preprocessing import load_data, clean_data
+from src.business_rules import (
+    ANNUAL_VALUE,
+    CAC,
+    CAMPAIGN_SUCCESS_RATE,
+    OFFER_COST,
+    batch_roi,
+    campaign_name,
+    estimate_retention_roi,
+    recommended_interventions,
+    risk_color,
+)
 from src.feature_engineering import create_features
+from src.predict import get_decision_threshold, load_artifacts, predict_churn
+from src.preprocessing import clean_data, load_data
 from src.utils import load_config
 
-st.set_page_config(page_title="ConnectTel Churn Dashboard", page_icon="📡", layout="centered")
+st.set_page_config(page_title="ConnectTel AI Churn Studio", page_icon="📡", layout="wide")
 
-# Business assumptions reused from reports/business_insight_report.md, Section 5,
-# so every dollar figure shown in this app is consistent with the ROI model.
-ANNUAL_VALUE = 780.0   # ARPU annual value per retained customer
-CAC = 250.0            # Customer acquisition cost avoided by retention
-OFFER_COST = 50.0      # Average retention offer cost
-CAMPAIGN_SUCCESS_RATE = 0.25  # Fraction of targeted true churners who accept and stay
+RISK_ORDER = ["Low", "Medium", "High"]
+DEFAULT_CUSTOMER = {
+    "gender": "Female",
+    "SeniorCitizen": 0,
+    "Partner": "Yes",
+    "Dependents": "No",
+    "tenure": 12,
+    "PhoneService": "Yes",
+    "MultipleLines": "No",
+    "InternetService": "Fiber optic",
+    "OnlineSecurity": "No",
+    "OnlineBackup": "Yes",
+    "DeviceProtection": "No",
+    "TechSupport": "No",
+    "StreamingTV": "Yes",
+    "StreamingMovies": "No",
+    "Contract": "Month-to-month",
+    "PaperlessBilling": "Yes",
+    "PaymentMethod": "Electronic check",
+    "MonthlyCharges": 80.0,
+    "TotalCharges": 960.0,
+}
+LOW_RISK_CUSTOMER = {
+    **DEFAULT_CUSTOMER,
+    "tenure": 48,
+    "Contract": "Two year",
+    "InternetService": "DSL",
+    "TechSupport": "Yes",
+    "PaymentMethod": "Credit card (automatic)",
+    "MonthlyCharges": 55.0,
+    "TotalCharges": 2640.0,
+}
 
 
-@st.cache_resource
+st.markdown(
+    """
+    <style>
+    .main .block-container {padding-top: 1.5rem; padding-bottom: 2rem;}
+    .hero {background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #06b6d4 100%); padding: 2rem; border-radius: 24px; color: white; margin-bottom: 1rem;}
+    .hero h1 {font-size: 2.6rem; margin: 0 0 .4rem 0; letter-spacing: -0.04em;}
+    .hero p {font-size: 1.05rem; opacity: .92; max-width: 900px;}
+    .kpi-card {background: white; border: 1px solid #e2e8f0; border-radius: 18px; padding: 1.1rem; box-shadow: 0 10px 28px rgba(15,23,42,.08);}
+    .kpi-label {color: #64748b; font-size: .82rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: .35rem;}
+    .kpi-value {font-size: 1.7rem; font-weight: 800; color: #0f172a;}
+    .risk-badge {display: inline-block; color: white; padding: .45rem .8rem; border-radius: 999px; font-weight: 800; letter-spacing: .02em;}
+    .panel {background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 1.2rem; box-shadow: 0 8px 22px rgba(15,23,42,.06); margin-bottom: 1rem;}
+    .muted {color: #64748b; font-size: .92rem;}
+    .action-card {border-left: 6px solid #2563eb; background: #eff6ff; padding: 1rem; border-radius: 16px; margin-bottom: .7rem;}
+    .stButton > button {border-radius: 999px; font-weight: 700; padding: .55rem 1rem;}
+    div[data-testid="stMetric"] {background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 1rem; box-shadow: 0 8px 22px rgba(15,23,42,.05);}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+@st.cache_resource(show_spinner=False)
 def get_artifacts():
-    """Load and cache the model, preprocessor, and feature names for the app session."""
+    """Load and cache model artifacts once per Streamlit session."""
     return load_artifacts()
 
 
-@st.cache_data
+@st.cache_data(show_spinner=False)
 def get_model_metadata():
-    """Load Logistic Regression metadata (metrics, threshold, params) for display, if present."""
+    """Load deployed model metadata for KPI display."""
     metadata_path = os.path.join("models", "logistic_regression_metadata.json")
     if not os.path.exists(metadata_path):
-        return None
-    try:
-        with open(metadata_path, "r") as f:
-            return json.load(f)
-    except Exception:
-        return None
+        return {}
+    with open(metadata_path, "r") as f:
+        return json.load(f)
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Scoring historical customer base...")
 def score_full_customer_base(_model, _preprocessor, _feature_names, threshold):
-    """
-    Batch-score the entire historical dataset with the deployed model, for
-    the Executive Dashboard tab. Returns a DataFrame with churn probability
-    and risk tier per customer, plus aggregate KPI figures.
-    """
+    """Batch-score the historical base for executive dashboard visualizations."""
     config = load_config()
     df_raw = load_data(config["data"]["raw_path"])
     df_clean, _ = clean_data(df_raw)
     df_eng = create_features(df_clean)
-
     X = df_eng.drop(columns=[config["data"]["target_col"]])
     X_trans = _preprocessor.transform(X)
+    if X_trans.shape[1] != len(_feature_names):
+        raise RuntimeError(
+            f"Feature mismatch while scoring portfolio: got {X_trans.shape[1]} columns, "
+            f"expected {len(_feature_names)}."
+        )
     X_df = pd.DataFrame(X_trans, columns=_feature_names, index=X.index)
-
     probs = _model.predict_proba(X_df)[:, 1]
-    preds = (probs >= threshold).astype(int)
-
-    risk_tier = pd.cut(
-        probs, bins=[-0.01, 0.3, 0.6, 1.01], labels=["Low", "Medium", "High"]
+    return pd.DataFrame(
+        {
+            "churn_probability": probs,
+            "churn_prediction": (probs >= threshold).astype(int),
+            "risk_tier": pd.cut(probs, bins=[-0.01, 0.3, 0.6, 1.01], labels=RISK_ORDER),
+            "Contract": X["Contract"].values,
+            "InternetService": X["InternetService"].values,
+            "PaymentMethod": X["PaymentMethod"].values,
+            "MonthlyCharges": X["MonthlyCharges"].values,
+        }
     )
 
-    scored = pd.DataFrame({
-        "churn_probability": probs,
-        "churn_prediction": preds,
-        "risk_tier": risk_tier,
-    })
-    return scored
+
+def reset_customer():
+    st.session_state.customer_defaults = DEFAULT_CUSTOMER.copy()
+    st.session_state.prediction_result = None
+    st.session_state.prediction_customer = None
 
 
-st.title("📡 ConnectTel Customer Churn Predictor")
-st.caption(
-    "Interactive deployment of the Logistic Regression model (final selected model per the project report). "
-    "Input customer attributes below to score risk and calculate retention ROI."
+def load_example_customer():
+    st.session_state.customer_defaults = DEFAULT_CUSTOMER.copy()
+
+
+def load_low_risk_customer():
+    st.session_state.customer_defaults = LOW_RISK_CUSTOMER.copy()
+
+
+def build_customer_from_form():
+    """Build a validated raw customer payload from Streamlit widget state."""
+    if st.session_state.total_charges < 0 or st.session_state.monthly_charges < 0:
+        raise ValueError("Charges must be non-negative.")
+    if st.session_state.tenure == 0 and st.session_state.total_charges > 0:
+        raise ValueError("A zero-tenure customer should not have positive Total Charges.")
+    return {
+        "gender": st.session_state.gender,
+        "SeniorCitizen": 1 if st.session_state.senior_citizen == "Yes" else 0,
+        "Partner": st.session_state.partner,
+        "Dependents": st.session_state.dependents,
+        "tenure": int(st.session_state.tenure),
+        "PhoneService": st.session_state.phone_service,
+        "MultipleLines": st.session_state.multiple_lines,
+        "InternetService": st.session_state.internet_service,
+        "OnlineSecurity": st.session_state.online_security,
+        "OnlineBackup": st.session_state.online_backup,
+        "DeviceProtection": st.session_state.device_protection,
+        "TechSupport": st.session_state.tech_support,
+        "StreamingTV": st.session_state.streaming_tv,
+        "StreamingMovies": st.session_state.streaming_movies,
+        "Contract": st.session_state.contract,
+        "PaperlessBilling": st.session_state.paperless_billing,
+        "PaymentMethod": st.session_state.payment_method,
+        "MonthlyCharges": float(st.session_state.monthly_charges),
+        "TotalCharges": float(st.session_state.total_charges),
+    }
+
+
+def probability_gauge(probability, threshold):
+    """Build an interactive Plotly churn probability gauge."""
+    return go.Figure(
+        go.Indicator(
+            mode="gauge+number+delta",
+            value=probability * 100,
+            number={"suffix": "%", "font": {"size": 42}},
+            delta={"reference": threshold * 100, "suffix": " pts vs threshold"},
+            gauge={
+                "axis": {"range": [0, 100]},
+                "bar": {"color": risk_color("High" if probability >= 0.6 else "Medium" if probability >= 0.3 else "Low")},
+                "steps": [
+                    {"range": [0, 30], "color": "#dcfce7"},
+                    {"range": [30, 60], "color": "#fef3c7"},
+                    {"range": [60, 100], "color": "#fee2e2"},
+                ],
+                "threshold": {"line": {"color": "#0f172a", "width": 4}, "value": threshold * 100},
+            },
+            title={"text": "Churn Probability"},
+        )
+    ).update_layout(height=300, margin=dict(l=20, r=20, t=50, b=10))
+
+
+def factors_chart(factors):
+    """Create a ranked visual for explanation factors when live SHAP values are unavailable."""
+    scores = list(range(len(factors), 0, -1))
+    fig = px.bar(
+        x=scores,
+        y=factors,
+        orientation="h",
+        labels={"x": "Relative priority", "y": "Risk factor"},
+        color=scores,
+        color_continuous_scale="Blues",
+    )
+    fig.update_layout(showlegend=False, height=280, margin=dict(l=10, r=10, t=20, b=10), yaxis={"autorange": "reversed"})
+    return fig
+
+
+def report_dataframe(customer, result, roi, campaign):
+    """Create a one-row downloadable prediction report."""
+    return pd.DataFrame([
+        {
+            "generated_at_utc": datetime.utcnow().isoformat(timespec="seconds"),
+            "churn_probability": result["churn_probability"],
+            "risk_tier": result["risk_tier"],
+            "churn_prediction": result["churn_prediction"],
+            "model_confidence": result["model_confidence"],
+            "customer_lifetime_value": result["clv"],
+            "expected_saved_value": roi["expected_saved_value"],
+            "offer_cost": roi["offer_cost"],
+            "estimated_net_roi": roi["net_roi"],
+            "campaign": campaign,
+            "recommended_action": result["recommended_action"],
+            "top_risk_factors": " | ".join(result["top_risk_factors"]),
+            **customer,
+        }
+    ])
+
+
+def render_prediction_result(result, customer):
+    """Render the complete prediction results experience."""
+    probability = result["churn_probability"]
+    confidence = result.get("model_confidence", max(probability, 1 - probability))
+    roi = estimate_retention_roi(probability, result["clv"])
+    campaign = campaign_name(customer, result["risk_tier"])
+    interventions = recommended_interventions(customer, result["risk_tier"])
+
+    st.toast("Prediction completed successfully", icon="✅")
+    color = risk_color(result["risk_tier"])
+    st.markdown(
+        f"<span class='risk-badge' style='background:{color}'>{result['risk_tier']} Risk</span>",
+        unsafe_allow_html=True,
+    )
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Churn Probability", f"{probability:.1%}")
+    k2.metric("Model Confidence", f"{confidence:.1%}")
+    k3.metric("Estimated CLV", f"${result['clv']:,.0f}")
+    k4.metric("Estimated Net ROI", f"${roi['net_roi']:,.0f}")
+
+    left, right = st.columns([1.05, 1])
+    with left:
+        st.plotly_chart(probability_gauge(probability, result["decision_threshold"]), use_container_width=True)
+        st.caption(
+            f"Decision threshold: {result['decision_threshold']:.2f}. Prediction: "
+            f"**{result['churn_prediction']}**. Confidence is measured as distance from binary uncertainty."
+        )
+    with right:
+        st.markdown("<div class='panel'><h3>Interactive Customer Summary</h3>", unsafe_allow_html=True)
+        s1, s2 = st.columns(2)
+        s1.write(f"**Persona:** {result['persona']}")
+        s1.write(f"**Contract:** {customer['Contract']}")
+        s1.write(f"**Tenure:** {customer['tenure']} months")
+        s2.write(f"**Internet:** {customer['InternetService']}")
+        s2.write(f"**Payment:** {customer['PaymentMethod']}")
+        s2.write(f"**Billing Risk:** ${result['billing_risk']:,.2f}")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    explain_col, action_col = st.columns([1, 1])
+    with explain_col:
+        st.markdown("### AI Explanation Panel")
+        st.info("Live SHAP values are computed offline for model governance; this panel shows SHAP-aligned drivers used by the deployed rules layer.")
+        st.plotly_chart(factors_chart(result["top_risk_factors"]), use_container_width=True)
+        for factor in result["top_risk_factors"]:
+            st.markdown(f"- {factor}")
+        shap_path = os.path.join("outputs", "plots", "shap_feature_importance_plot.png")
+        if os.path.exists(shap_path):
+            st.image(shap_path, caption="Offline SHAP global feature importance artifact", use_container_width=True)
+    with action_col:
+        st.markdown("### Recommended Retention Action")
+        st.markdown(f"<div class='action-card'><b>Suggested campaign:</b><br>{campaign}</div>", unsafe_allow_html=True)
+        st.success(result["recommended_action"])
+        for item in interventions:
+            st.markdown(f"<div class='action-card'>{item}</div>", unsafe_allow_html=True)
+
+    st.markdown("### ROI Summary")
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Expected Saved Value", f"${roi['expected_saved_value']:,.0f}")
+    r2.metric("Offer Cost", f"${roi['offer_cost']:,.0f}")
+    r3.metric("Net Retention ROI", f"${roi['net_roi']:,.0f}")
+
+    csv = report_dataframe(customer, result, roi, campaign).to_csv(index=False).encode("utf-8")
+    st.download_button(
+        "Download prediction report (CSV)",
+        data=csv,
+        file_name="connecttel_churn_prediction_report.csv",
+        mime="text/csv",
+        type="primary",
+    )
+
+
+def render_customer_form():
+    """Render the prediction input form with example/reset controls."""
+    defaults = st.session_state.customer_defaults
+    st.markdown("### Score a Customer")
+    st.caption("Use the example buttons or adjust the fields to score an individual account in real time.")
+
+    cta1, cta2, cta3 = st.columns([1, 1, 4])
+    cta1.button("Example high risk", on_click=load_example_customer)
+    cta2.button("Reset form", on_click=reset_customer)
+    cta3.button("Example low risk", on_click=load_low_risk_customer)
+
+    with st.form("customer_form", clear_on_submit=False):
+        st.markdown("#### Account & Billing")
+        a1, a2, a3 = st.columns(3)
+        a1.number_input("Tenure (months)", min_value=0, max_value=100, value=int(defaults["tenure"]), key="tenure")
+        a2.number_input("Monthly Charges ($)", min_value=0.0, value=float(defaults["MonthlyCharges"]), step=0.5, key="monthly_charges")
+        a3.number_input("Total Charges ($)", min_value=0.0, value=float(defaults["TotalCharges"]), step=1.0, key="total_charges")
+
+        b1, b2, b3 = st.columns(3)
+        b1.selectbox("Contract Type", ["Month-to-month", "One year", "Two year"], index=["Month-to-month", "One year", "Two year"].index(defaults["Contract"]), key="contract")
+        b2.selectbox("Paperless Billing", ["Yes", "No"], index=["Yes", "No"].index(defaults["PaperlessBilling"]), key="paperless_billing")
+        b3.selectbox("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"], index=["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"].index(defaults["PaymentMethod"]), key="payment_method")
+
+        st.markdown("#### Demographics")
+        d1, d2, d3, d4 = st.columns(4)
+        d1.selectbox("Gender", ["Female", "Male"], index=["Female", "Male"].index(defaults["gender"]), key="gender")
+        d2.selectbox("Senior Citizen", ["No", "Yes"], index=defaults["SeniorCitizen"], key="senior_citizen")
+        d3.selectbox("Partner", ["Yes", "No"], index=["Yes", "No"].index(defaults["Partner"]), key="partner")
+        d4.selectbox("Dependents", ["No", "Yes"], index=["No", "Yes"].index(defaults["Dependents"]), key="dependents")
+
+        st.markdown("#### Services")
+        svc1, svc2, svc3 = st.columns(3)
+        svc1.selectbox("Phone Service", ["Yes", "No"], index=["Yes", "No"].index(defaults["PhoneService"]), key="phone_service")
+        svc1.selectbox("Multiple Lines", ["No", "Yes", "No phone service"], index=["No", "Yes", "No phone service"].index(defaults["MultipleLines"]), key="multiple_lines")
+        svc2.selectbox("Internet Service", ["DSL", "Fiber optic", "No"], index=["DSL", "Fiber optic", "No"].index(defaults["InternetService"]), key="internet_service")
+        svc2.selectbox("Online Security", ["No", "Yes", "No internet service"], index=["No", "Yes", "No internet service"].index(defaults["OnlineSecurity"]), key="online_security")
+        svc2.selectbox("Online Backup", ["No", "Yes", "No internet service"], index=["No", "Yes", "No internet service"].index(defaults["OnlineBackup"]), key="online_backup")
+        svc3.selectbox("Device Protection", ["No", "Yes", "No internet service"], index=["No", "Yes", "No internet service"].index(defaults["DeviceProtection"]), key="device_protection")
+        svc3.selectbox("Tech Support", ["No", "Yes", "No internet service"], index=["No", "Yes", "No internet service"].index(defaults["TechSupport"]), key="tech_support")
+        svc3.selectbox("Streaming TV", ["No", "Yes", "No internet service"], index=["No", "Yes", "No internet service"].index(defaults["StreamingTV"]), key="streaming_tv")
+        st.selectbox("Streaming Movies", ["No", "Yes", "No internet service"], index=["No", "Yes", "No internet service"].index(defaults["StreamingMovies"]), key="streaming_movies")
+
+        submitted = st.form_submit_button("Run Risk Prediction", type="primary", use_container_width=True)
+
+    return submitted
+
+
+def render_executive_dashboard(model, preprocessor, feature_names, decision_threshold):
+    """Render the executive portfolio dashboard with interactive Plotly charts."""
+    st.markdown("### Executive Risk & Revenue Dashboard")
+    st.caption(f"Full customer base scored at the deployed cost-sensitive decision threshold ({decision_threshold:.2f}).")
+
+    scored = score_full_customer_base(model, preprocessor, feature_names, decision_threshold)
+    total_customers = len(scored)
+    tier_counts = scored["risk_tier"].value_counts().reindex(RISK_ORDER).fillna(0).astype(int)
+    flagged_churners = int(scored["churn_prediction"].sum())
+    precision_estimate = 0.434 if abs(decision_threshold - 0.30) < 1e-6 else 0.504
+    roi = batch_roi(flagged_churners, precision_estimate)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Total Customers", f"{total_customers:,}")
+    k2.metric("High Risk", f"{tier_counts['High']:,}")
+    k3.metric("Flagged for Outreach", f"{flagged_churners:,}")
+    k4.metric("Est. Net Benefit", f"${roi['net_benefit']:,.0f}")
+
+    chart1, chart2 = st.columns([1, 1])
+    with chart1:
+        fig = px.pie(
+            names=tier_counts.index,
+            values=tier_counts.values,
+            hole=0.55,
+            color=tier_counts.index,
+            color_discrete_map={"Low": "#16a34a", "Medium": "#f59e0b", "High": "#dc2626"},
+            title="Risk Tier Mix",
+        )
+        fig.update_layout(height=390, legend_title_text="Risk")
+        st.plotly_chart(fig, use_container_width=True)
+    with chart2:
+        hist = px.histogram(
+            scored,
+            x="churn_probability",
+            nbins=30,
+            color="risk_tier",
+            color_discrete_map={"Low": "#16a34a", "Medium": "#f59e0b", "High": "#dc2626"},
+            title="Churn Probability Distribution",
+        )
+        hist.add_vline(x=decision_threshold, line_dash="dash", line_color="#0f172a")
+        hist.update_layout(height=390, xaxis_tickformat=".0%", bargap=0.03)
+        st.plotly_chart(hist, use_container_width=True)
+
+    segment = (
+        scored.groupby(["Contract", "risk_tier"], observed=False)
+        .size()
+        .reset_index(name="customers")
+    )
+    fig_segment = px.bar(
+        segment,
+        x="Contract",
+        y="customers",
+        color="risk_tier",
+        barmode="group",
+        color_discrete_map={"Low": "#16a34a", "Medium": "#f59e0b", "High": "#dc2626"},
+        title="Risk Concentration by Contract Type",
+    )
+    fig_segment.update_layout(height=420)
+    st.plotly_chart(fig_segment, use_container_width=True)
+
+    st.markdown("### Retention ROI Model")
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Est. True Churners", f"{roi['estimated_true_churners']:,.0f}")
+    r2.metric("Est. Customers Retained", f"{roi['customers_retained']:,.0f}")
+    r3.metric("Revenue Saved", f"${roi['revenue_saved']:,.0f}")
+    r4.metric("Campaign Cost", f"${roi['campaign_cost']:,.0f}")
+    st.caption(
+        f"Assumptions: annual ARPU value ${ANNUAL_VALUE:.0f}, CAC avoided ${CAC:.0f}, "
+        f"offer cost ${OFFER_COST:.0f}, campaign success {CAMPAIGN_SUCCESS_RATE:.0%}, "
+        f"precision estimate {precision_estimate:.1%}."
+    )
+
+
+def render_model_info(metadata):
+    """Render model governance metrics from metadata."""
+    with st.expander("Model governance and deployment metadata", expanded=False):
+        metrics = metadata.get("metrics", {})
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Accuracy", f"{metrics.get('Accuracy', 0):.3f}")
+        m2.metric("Precision", f"{metrics.get('Precision', 0):.3f}")
+        m3.metric("Recall", f"{metrics.get('Recall', 0):.3f}")
+        m4.metric("ROC AUC", f"{metrics.get('ROC_AUC', 0):.3f}")
+        threshold = metadata.get("threshold_optimization", {}).get("recommended_threshold", get_decision_threshold())
+        st.write(
+            f"Deployed model: **{metadata.get('model_type', 'LogisticRegression')}** · "
+            f"scikit-learn artifact version: **{metadata.get('sklearn_version', 'unknown')}** · "
+            f"decision threshold: **{threshold:.2f}**"
+        )
+        st.caption("SHAP plots remain available under outputs/plots for offline governance and audit review.")
+
+
+if "customer_defaults" not in st.session_state:
+    st.session_state.customer_defaults = DEFAULT_CUSTOMER.copy()
+if "prediction_result" not in st.session_state:
+    st.session_state.prediction_result = None
+if "prediction_customer" not in st.session_state:
+    st.session_state.prediction_customer = None
+
+st.markdown(
+    """
+    <div class='hero'>
+      <h1>ConnectTel AI Churn Studio</h1>
+      <p>Enterprise retention intelligence for real-time churn scoring, explainable AI diagnostics, and campaign ROI planning.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-
-metadata = get_model_metadata()
-if metadata and "metrics" in metadata:
-    with st.expander("ℹ️ Model Info (matches project report)"):
-        m = metadata["metrics"]
-        i1, i2, i3, i4 = st.columns(4)
-        i1.metric("Accuracy", f"{m.get('Accuracy', 0):.3f}")
-        i2.metric("Precision", f"{m.get('Precision', 0):.3f}")
-        i3.metric("Recall", f"{m.get('Recall', 0):.3f}")
-        i4.metric("ROC AUC", f"{m.get('ROC_AUC', 0):.3f}")
-        st.caption(
-            f"Model type: {metadata.get('model_type', 'Logistic Regression')} · "
-            f"scikit-learn: {metadata.get('sklearn_version', 'n/a')} · "
-            f"random_state: {metadata.get('random_state', 'n/a')}"
-        )
-        thr_info = metadata.get("threshold_optimization")
-        if thr_info:
-            st.markdown(
-                f"**Decision threshold: {thr_info['recommended_threshold']}** "
-                "(cost-sensitive optimization, not the naive 0.5 default — see the "
-                "Threshold Optimization section of the project report for the full rationale)."
-            )
-        st.caption(
-            "Since churn datasets are imbalanced, Accuracy alone can be misleading. "
-            "ROC-AUC, Precision, Recall, and F1 were used as the primary evaluation metrics, "
-            "and the Logistic Regression model was trained with class_weight='balanced' to "
-            "correct for the ~73%/27% class imbalance without needing synthetic oversampling (SMOTE)."
-        )
 
 try:
     model, preprocessor, feature_names = get_artifacts()
-except FileNotFoundError as e:
-    st.error(
-        f"Model artifacts not found under `models/`.\n\n**Details:** {e}\n\n"
-        "Ensure `models/logistic_regression_model.joblib`, "
-        "`models/preprocessing_pipeline.joblib`, and `models/feature_names.joblib` "
-        "are present alongside `app.py`."
-    )
-    st.stop()
-except RuntimeError as e:
-    st.error(f"❌ Could not load the Logistic Regression model.\n\n**Details:** {e}")
-    st.stop()
-except Exception as e:  # noqa: BLE001
-    st.error(f"❌ An unexpected error occurred while loading the model: {e}")
+    st.success("Model artifacts loaded and validated.", icon="✅")
+except Exception as exc:  # noqa: BLE001
+    st.error(f"Prediction service is unavailable: {exc}")
+    st.info("Run the app in the pinned requirements.txt environment or retrain artifacts with the active runtime.")
     st.stop()
 
+metadata = get_model_metadata()
 decision_threshold = get_decision_threshold()
+render_model_info(metadata)
 
-predict_tab, dashboard_tab = st.tabs(["🔮 Predict Churn Risk", "📊 Executive Dashboard"])
+predict_tab, dashboard_tab = st.tabs(["Predict", "Executive Dashboard"])
 
-# --------------------------------------------------------------------------
-# Tab 1: Single-customer prediction
-# --------------------------------------------------------------------------
 with predict_tab:
-    with st.form("customer_form"):
-        st.subheader("Account Information")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            tenure = st.number_input("Tenure (months)", min_value=0, max_value=100, value=12)
-        with col2:
-            monthly_charges = st.number_input("Monthly Charges ($)", min_value=0.0, value=70.0, step=0.5)
-        with col3:
-            total_charges = st.number_input("Total Charges ($)", min_value=0.0, value=840.0, step=1.0)
-
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            contract = st.selectbox("Contract Type", ["Month-to-month", "One year", "Two year"])
-        with col5:
-            paperless_billing = st.selectbox("Paperless Billing", ["Yes", "No"])
-        with col6:
-            payment_method = st.selectbox(
-                "Payment Method",
-                ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"],
-            )
-
-        st.subheader("Customer Demographics")
-        col7, col8, col9 = st.columns(3)
-        with col7:
-            gender = st.selectbox("Gender", ["Female", "Male"])
-        with col8:
-            senior_citizen = st.selectbox("Senior Citizen", ["No", "Yes"])
-        with col9:
-            partner = st.selectbox("Partner", ["Yes", "No"])
-        dependents = st.selectbox("Dependents", ["No", "Yes"])
-
-        st.subheader("Subscribed Services")
-        col10, col11 = st.columns(2)
-        with col10:
-            phone_service = st.selectbox("Phone Service", ["Yes", "No"])
-            multiple_lines = st.selectbox("Multiple Lines", ["No", "Yes", "No phone service"])
-            internet_service = st.selectbox("Internet Service", ["DSL", "Fiber optic", "No"])
-            online_security = st.selectbox("Online Security", ["No", "Yes", "No internet service"])
-        with col11:
-            online_backup = st.selectbox("Online Backup", ["No", "Yes", "No internet service"])
-            device_protection = st.selectbox("Device Protection", ["No", "Yes", "No internet service"])
-            tech_support = st.selectbox("Tech Support", ["No", "Yes", "No internet service"])
-
-        col12, col13 = st.columns(2)
-        with col12:
-            streaming_tv = st.selectbox("Streaming TV", ["No", "Yes", "No internet service"])
-        with col13:
-            streaming_movies = st.selectbox("Streaming Movies", ["No", "Yes", "No internet service"])
-
-        submitted = st.form_submit_button("Run Risk Prediction", type="primary")
-
-    if submitted:
-        customer = {
-            "gender": gender,
-            "SeniorCitizen": 1 if senior_citizen == "Yes" else 0,
-            "Partner": partner,
-            "Dependents": dependents,
-            "tenure": tenure,
-            "PhoneService": phone_service,
-            "MultipleLines": multiple_lines,
-            "InternetService": internet_service,
-            "OnlineSecurity": online_security,
-            "OnlineBackup": online_backup,
-            "DeviceProtection": device_protection,
-            "TechSupport": tech_support,
-            "StreamingTV": streaming_tv,
-            "StreamingMovies": streaming_movies,
-            "Contract": contract,
-            "PaperlessBilling": paperless_billing,
-            "PaymentMethod": payment_method,
-            "MonthlyCharges": monthly_charges,
-            "TotalCharges": total_charges,
-        }
-
-        # Predict using inference module (re-calculates new advanced features automatically)
-        try:
-            result = predict_churn(customer, model=model, preprocessor=preprocessor, feature_names=feature_names)
-        except Exception as e:  # noqa: BLE001
-            st.error(f"❌ Prediction failed: {e}")
-            st.stop()
-
-        st.divider()
-        st.header("Risk Analytics & Diagnostics")
-
-        m1, m2, m3 = st.columns(3)
-        m1.metric(label="Churn Probability", value=f"{result['churn_probability']:.1%}")
-        m2.metric(label="Risk Tier", value=result["risk_tier"])
-        m3.metric(label="Estimated Customer LTV", value=f"${result['clv']:,.2f}")
-
-        st.progress(min(max(result["churn_probability"], 0.0), 1.0))
-        st.caption(
-            f"Decision boundary: customer is classified **{result['churn_prediction']}** "
-            f"at the cost-optimized threshold of {result['decision_threshold']:.2f} "
-            "(not the naive 0.5 default)."
-        )
-
-        st.markdown("### Profile Segment Analysis")
-        c1, c2 = st.columns(2)
-        c1.info(f"**Identified Persona:**  \n{result['persona']}")
-
-        risk_level = "Elevated Billing Risk" if result["billing_risk"] > 50.0 else "Stable Billing Friction"
-        c2.warning(f"**Billing Risk Rating:**  \n{risk_level} (${result['billing_risk']:.2f})")
-
-        st.divider()
-        st.header("Explainable AI: Why This Prediction?")
-        st.markdown("**Top Risk Factors**")
-        for factor in result["top_risk_factors"]:
-            st.markdown(f"- {factor}")
-        st.markdown("**Recommended Action**")
-        st.success(result["recommended_action"])
-
-        st.divider()
-        st.header("Recommended Retention Interventions")
-
-        interventions = []
-        if result["risk_tier"] in ["Medium", "High"]:
-            if contract == "Month-to-month":
-                interventions.append(
-                    "👉 **Month-to-Year Contract Migration**: Offer a 10% monthly discount or a free speed bump "
-                    "in exchange for converting to a 1-year contract."
-                )
-            if internet_service == "Fiber optic":
-                interventions.append(
-                    "👉 **Fiber Quality Stability Audit**: Dispatch technical connection check in customer's area "
-                    "and apply a proactive $5/month loyalty credit for 6 months."
-                )
-            if payment_method == "Electronic check":
-                interventions.append(
-                    "👉 **Auto-Pay Enrollment Campaign**: Offer a one-time $10 statement credit to transition customer "
-                    "to Credit Card or Bank Auto-Pay billing."
-                )
-            if tenure <= 12:
-                interventions.append(
-                    "👉 **Early-Tenure CRM Welcome Journey**: Arrange a priority check-in call by a loyalty agent "
-                    "at month 3/6 and dispatch a first-year anniversary bonus offer."
-                )
-
-            if not interventions:
-                interventions.append("👉 **Outbound Care Outreach**: Call customer to assess satisfaction and offer a general 5% loyalty discount.")
-
-            st.error("⚠️ **Proactive Retention Action Required**")
-            for campaign in interventions:
-                st.markdown(campaign)
+    form_col, result_col = st.columns([0.95, 1.05], gap="large")
+    with form_col:
+        submitted = render_customer_form()
+        if submitted:
+            try:
+                customer = build_customer_from_form()
+                with st.spinner("Running model inference and ROI analysis..."):
+                    st.session_state.prediction_result = predict_churn(
+                        customer, model=model, preprocessor=preprocessor, feature_names=feature_names
+                    )
+                    st.session_state.prediction_customer = customer
+            except ValueError as exc:
+                st.warning(str(exc), icon="⚠️")
+            except Exception as exc:  # noqa: BLE001
+                st.error(f"Prediction failed: {exc}", icon="🚨")
+    with result_col:
+        if st.session_state.prediction_result and st.session_state.prediction_customer:
+            render_prediction_result(st.session_state.prediction_result, st.session_state.prediction_customer)
         else:
-            st.success("✅ **Stable Account Profile**")
-            st.write("Customer exhibits low churn probability. Maintain standard service sequence; no promotional interventions required.")
+            st.markdown("<div class='panel'><h3>Ready for prediction</h3><p class='muted'>Submit a customer profile to see churn probability, confidence, explanations, retention actions, and ROI.</p></div>", unsafe_allow_html=True)
+            st.plotly_chart(probability_gauge(0.0, decision_threshold), use_container_width=True)
 
-# --------------------------------------------------------------------------
-# Tab 2: Executive Dashboard
-# --------------------------------------------------------------------------
 with dashboard_tab:
-    st.header("📊 Executive Risk & Revenue Dashboard")
-    st.caption(
-        "Full customer base scored with the deployed Logistic Regression model "
-        f"at the cost-optimized decision threshold ({decision_threshold:.2f})."
-    )
-
     try:
-        scored = score_full_customer_base(model, preprocessor, feature_names, decision_threshold)
-    except Exception as e:  # noqa: BLE001
-        st.error(f"❌ Could not score the full customer base: {e}")
-        st.stop()
+        render_executive_dashboard(model, preprocessor, feature_names, decision_threshold)
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Could not render executive dashboard: {exc}")
 
-    total_customers = len(scored)
-    high_risk = int((scored["risk_tier"] == "High").sum())
-    medium_risk = int((scored["risk_tier"] == "Medium").sum())
-    low_risk = int((scored["risk_tier"] == "Low").sum())
-    flagged_churners = int(scored["churn_prediction"].sum())
-
-    # Expected revenue saved: only customers flagged "Yes" at the deployed
-    # threshold are targeted; a fraction (CAMPAIGN_SUCCESS_RATE) of the true
-    # churners among them are assumed to accept the offer and stay. This
-    # mirrors the same methodology as reports/business_insight_report.md
-    # Section 5, scaled to this dataset instead of the illustrative 100k base.
-    # Precision at the deployed threshold (from the metadata threshold sweep)
-    # estimates what fraction of flagged customers are true churners.
-    precision_estimate = 0.434 if abs(decision_threshold - 0.30) < 1e-6 else 0.504
-    estimated_true_churners = flagged_churners * precision_estimate
-    customers_retained = estimated_true_churners * CAMPAIGN_SUCCESS_RATE
-    revenue_saved = customers_retained * (ANNUAL_VALUE + CAC)
-    campaign_cost = flagged_churners * OFFER_COST
-    net_benefit = revenue_saved - campaign_cost
-
-    st.markdown("#### Customer Risk Distribution")
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Total Customers", f"{total_customers:,}")
-    k2.metric("🔴 High Risk", f"{high_risk:,}")
-    k3.metric("🟠 Medium Risk", f"{medium_risk:,}")
-    k4.metric("🟢 Low Risk", f"{low_risk:,}")
-
-    st.markdown("#### Retention Campaign Impact (Estimated)")
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Customers Flagged for Outreach", f"{flagged_churners:,}")
-    r2.metric("Est. Customers Retained", f"{customers_retained:,.0f}")
-    r3.metric("Est. Revenue Saved", f"${revenue_saved:,.0f}")
-
-    st.caption(
-        f"Assumptions: ARPU annual value ${ANNUAL_VALUE:.0f}, CAC avoided ${CAC:.0f}, "
-        f"retention offer cost ${OFFER_COST:.0f}, campaign success rate {CAMPAIGN_SUCCESS_RATE:.0%}, "
-        f"estimated Precision at this threshold {precision_estimate:.1%} "
-        "(see reports/business_insight_report.md, Section 5, for the full ROI methodology). "
-        f"Estimated campaign cost: ${campaign_cost:,.0f} · Estimated net benefit: ${net_benefit:,.0f}."
-    )
-
-    st.markdown("#### Risk Tier Breakdown")
-    tier_counts = scored["risk_tier"].value_counts().reindex(["Low", "Medium", "High"]).fillna(0)
-    st.bar_chart(tier_counts)
-
-st.divider()
 st.caption(
-    "⚠️ This interface runs predictions using the containerized MLOps pipeline. "
-    "See `api.py` and `Dockerfile` for REST endpoint deployment parameters. "
-    "Engineering: Dockerized deployment · REST API · Automated testing (pytest) · "
-    "GitHub Actions CI/CD · Modular architecture · Centralized configuration (config.yaml)."
+    "Production stack: Streamlit enterprise dashboard · FastAPI REST service · Docker · SHAP artifacts · "
+    "pytest regression tests · GitHub Actions CI/CD · centralized config.yaml."
 )
