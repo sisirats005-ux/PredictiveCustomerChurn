@@ -1,0 +1,64 @@
+{
+    "model_name": "Tuned XGBoost",
+    "tuning_info": {
+        "best_params": {
+            "learning_rate": 0.05,
+            "max_depth": 3,
+            "n_estimators": 100
+        },
+        "best_cv_auc": 0.8438080876051037
+    },
+    "metrics": {
+        "Accuracy": 0.7437899219304471,
+        "Precision": 0.5111111111111111,
+        "Recall": 0.7994652406417112,
+        "F1_Score": 0.6235662148070907,
+        "ROC_AUC": 0.8442584411893875,
+        "CV_Accuracy": 0.7532788758410153,
+        "CV_ROC_AUC": 0.8438080876051037
+    },
+    "registered_at": "2026-07-19T17:15:24.108492",
+    "random_state": 42,
+    "features": {
+        "numeric_cols": [
+            "tenure",
+            "MonthlyCharges",
+            "TotalCharges",
+            "ServiceCount",
+            "TotalChargesPerTenure",
+            "CLV",
+            "ChargesRatio",
+            "BillingRisk"
+        ],
+        "categorical_cols": [
+            "gender",
+            "Partner",
+            "Dependents",
+            "PhoneService",
+            "MultipleLines",
+            "InternetService",
+            "OnlineSecurity",
+            "OnlineBackup",
+            "DeviceProtection",
+            "TechSupport",
+            "StreamingTV",
+            "StreamingMovies",
+            "Contract",
+            "PaperlessBilling",
+            "PaymentMethod"
+        ],
+        "remainder_cols": [
+            "SeniorCitizen",
+            "HasFamily",
+            "LongTermCustomer",
+            "AutoPayment",
+            "Fiber_x_MonthToMonth",
+            "Fiber_x_NoTechSupport",
+            "MonthToMonth_x_NoAutoPay",
+            "HighRiskContractPay",
+            "HighRiskProfile",
+            "Persona_New_HighSpend",
+            "Persona_Loyal_HighSpend"
+        ]
+    }
+}

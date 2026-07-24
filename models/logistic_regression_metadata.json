@@ -1,0 +1,110 @@
+{
+    "sklearn_version": "1.4.2",
+    "joblib_version": "1.4.2",
+    "model_type": "LogisticRegression",
+    "model_params": {
+        "C": 1.0,
+        "class_weight": "balanced",
+        "dual": false,
+        "fit_intercept": true,
+        "intercept_scaling": 1,
+        "l1_ratio": null,
+        "max_iter": 1000,
+        "multi_class": "auto",
+        "n_jobs": null,
+        "penalty": "l2",
+        "random_state": 42,
+        "solver": "lbfgs",
+        "tol": 0.0001,
+        "verbose": 0,
+        "warm_start": false
+    },
+    "metrics": {
+        "Accuracy": 0.7381121362668559,
+        "Precision": 0.5041876046901173,
+        "Recall": 0.8048128342245989,
+        "F1_Score": 0.619979402677652,
+        "ROC_AUC": 0.8461210571184996
+    },
+    "random_state": 42,
+    "threshold_optimization": {
+        "method": "Cost-sensitive threshold sweep (expected net retention benefit), cross-checked against Youden's J on the ROC curve",
+        "business_assumptions_reused_from": "reports/business_insight_report.md, Section 5 (ARPU annual=$780, CAC=$250, offer cost=$50, campaign success rate=25%)",
+        "cost_sensitive_theoretical_threshold": 0.0463,
+        "youdens_j_threshold": 0.5715,
+        "recommended_threshold": 0.3,
+        "threshold_sweep": [
+            {
+                "threshold": 0.05,
+                "Recall": 0.995,
+                "Precision": 0.308,
+                "F1": 0.47,
+                "Accuracy": 0.405,
+                "TP": 372,
+                "FP": 837,
+                "FN": 2
+            },
+            {
+                "threshold": 0.15,
+                "Recall": 0.979,
+                "Precision": 0.369,
+                "F1": 0.536,
+                "Accuracy": 0.551,
+                "TP": 366,
+                "FP": 625,
+                "FN": 8
+            },
+            {
+                "threshold": 0.2,
+                "Recall": 0.957,
+                "Precision": 0.393,
+                "F1": 0.557,
+                "Accuracy": 0.596,
+                "TP": 358,
+                "FP": 553,
+                "FN": 16
+            },
+            {
+                "threshold": 0.3,
+                "Recall": 0.917,
+                "Precision": 0.434,
+                "F1": 0.589,
+                "Accuracy": 0.66,
+                "TP": 343,
+                "FP": 448,
+                "FN": 31
+            },
+            {
+                "threshold": 0.4,
+                "Recall": 0.864,
+                "Precision": 0.467,
+                "F1": 0.607,
+                "Accuracy": 0.703,
+                "TP": 323,
+                "FP": 368,
+                "FN": 51
+            },
+            {
+                "threshold": 0.5,
+                "Recall": 0.805,
+                "Precision": 0.504,
+                "F1": 0.62,
+                "Accuracy": 0.738,
+                "TP": 301,
+                "FP": 296,
+                "FN": 73
+            },
+            {
+                "threshold": 0.5715,
+                "Recall": 0.749,
+                "Precision": 0.551,
+                "F1": 0.635,
+                "Accuracy": 0.771,
+                "TP": 280,
+                "FP": 228,
+                "FN": 94
+            }
+        ],
+        "rationale": "The default 0.5 threshold is not optimal for this business problem. A pure statistical criterion (Youden's J on the ROC curve) picks threshold=0.5715, but this actually reduces Recall (74.9%) relative to 0.5, which is the wrong direction for churn prevention, where a missed churner (~$1,030 in lost annual revenue + replacement CAC) is far more costly than an unnecessary retention offer (~$50). A theoretical cost-ratio threshold (FP_cost / (FP_cost+FN_cost) = 50/1080 = 0.046) swings too far the other way, flagging ~85% of all customers and making the campaign operationally unfocused. Sweeping thresholds against expected net retention benefit on the held-out test set (using the same ARPU, CAC, offer-cost and campaign-success-rate assumptions as the ROI model in Section 5) peaks around threshold=0.30, which recovers 91.7% of true churners (vs 80.5% at 0.5) at an acceptable Precision (43.4%). This threshold is used as the deployed decision boundary in src/predict.py."
+    }
+}

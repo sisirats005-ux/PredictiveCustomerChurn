@@ -1,0 +1,32 @@
+{
+  "fiber_vs_dsl_churn": {
+    "group_col": "InternetService",
+    "chi2_statistic": 328.26345137397004,
+    "dof": 1,
+    "p_value": 2.2962170975696955e-73,
+    "churn_rates": {
+      "DSL": 0.1895910780669145,
+      "Fiber optic": 0.4189276485788114
+    },
+    "significant": true
+  },
+  "partner_vs_churn": {
+    "group_col": "Partner",
+    "chi2_statistic": 158.7333820309922,
+    "dof": 1,
+    "p_value": 2.1399113440759935e-36,
+    "churn_rates": {
+      "No": 0.32957978577313923,
+      "Yes": 0.1966490299823633
+    },
+    "significant": true
+  },
+  "monthly_charges_vs_churn": {
+    "numeric_col": "MonthlyCharges",
+    "t_statistic": 18.407526676414673,
+    "p_value": 8.59244933154705e-73,
+    "mean_churn": 74.44133226324237,
+    "mean_no_churn": 61.26512369540008,
+    "significant": true
+  }
+}
