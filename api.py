@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
 import uvicorn
 
+from src.business_rules import recommended_interventions
 from src.predict import load_artifacts, predict_churn
 
 app = FastAPI(
@@ -39,13 +40,13 @@ class Gender(str, Enum):
     male = "Male"
 
 
-class MultipleLines(str, Enum):
+class MultipleLinesEnum(str, Enum):
     no = "No"
     yes = "Yes"
     no_phone_service = "No phone service"
 
 
-class InternetService(str, Enum):
+class InternetServiceEnum(str, Enum):
     dsl = "DSL"
     fiber = "Fiber optic"
     no = "No"
@@ -57,13 +58,13 @@ class InternetAddOn(str, Enum):
     no_internet_service = "No internet service"
 
 
-class Contract(str, Enum):
+class ContractEnum(str, Enum):
     month_to_month = "Month-to-month"
     one_year = "One year"
     two_year = "Two year"
 
 
-class PaymentMethod(str, Enum):
+class PaymentMethodEnum(str, Enum):
     electronic_check = "Electronic check"
     mailed_check = "Mailed check"
     bank_transfer = "Bank transfer (automatic)"
@@ -77,17 +78,17 @@ class CustomerData(BaseModel):
     Dependents: YesNo = Field(..., description="Whether the customer has dependents")
     tenure: int = Field(..., ge=0, le=100, description="Months of customer tenure")
     PhoneService: YesNo = Field(..., description="Whether customer has phone service")
-    MultipleLines: MultipleLines = Field(..., description="Phone line structure")
-    InternetService: InternetService = Field(..., description="Internet service type")
+    MultipleLines: MultipleLinesEnum = Field(..., description="Phone line structure")
+    InternetService: InternetServiceEnum = Field(..., description="Internet service type")
     OnlineSecurity: InternetAddOn = Field(..., description="Online security service")
     OnlineBackup: InternetAddOn = Field(..., description="Online backup service")
     DeviceProtection: InternetAddOn = Field(..., description="Device protection service")
     TechSupport: InternetAddOn = Field(..., description="Technical support service")
     StreamingTV: InternetAddOn = Field(..., description="TV streaming service")
     StreamingMovies: InternetAddOn = Field(..., description="Movies streaming service")
-    Contract: Contract = Field(..., description="Contract term")
+    Contract: ContractEnum = Field(..., description="Contract term")
     PaperlessBilling: YesNo = Field(..., description="Paperless billing")
-    PaymentMethod: PaymentMethod = Field(..., description="Payment channel")
+    PaymentMethod: PaymentMethodEnum = Field(..., description="Payment channel")
     MonthlyCharges: float = Field(..., ge=0.0, description="Monthly recurring charge amount")
     TotalCharges: Union[float, str] = Field(
         ..., description="Total cumulative charge amount (numeric float or blank string for new customers)"
@@ -105,6 +106,7 @@ class ChurnResponse(BaseModel):
     persona: str = Field(..., description="Identified customer persona cluster")
     top_risk_factors: List[str] = Field(..., description="Human-readable factors driving the risk assessment")
     recommended_action: str = Field(..., description="Priority retention action for this customer")
+    model_confidence: float = Field(..., description="Confidence in the binary model decision")
     recommended_interventions: List[str] = Field(
         ..., description="Priority customer retention actions based on profile indicators"
     )
@@ -138,35 +140,7 @@ def predict(customer: CustomerData):
             feature_names=feature_names,
         )
 
-        interventions = []
-        if scoring["risk_tier"] in ["Medium", "High"]:
-            if customer.Contract == Contract.month_to_month:
-                interventions.append(
-                    "Month-to-Year Contract Migration: Offer a 10% monthly discount or a free broadband speed bump "
-                    "in exchange for converting to a 1-year contract terms."
-                )
-            if customer.InternetService == InternetService.fiber:
-                interventions.append(
-                    "Fiber Optic Quality & Loyalty Credit: Deploy technical connection audit in customer's area "
-                    "and apply a proactive $5/month statement credit for 6 months."
-                )
-            if customer.PaymentMethod == PaymentMethod.electronic_check:
-                interventions.append(
-                    "Auto-Pay Promotion: Offer a one-time $10 statement credit to transition customer from "
-                    "manual Electronic Check billing to automatic Credit Card/Bank Transfer billing."
-                )
-            if customer.tenure <= 12:
-                interventions.append(
-                    "Early-Tenure Welcoming CRM Journey: Arrange a priority outreach call by customer "
-                    "loyalty representative at month 3/6 and dispatch a first-year anniversary bonus offer."
-                )
-            if not interventions:
-                interventions.append(
-                    "Proactive Customer Care: Engage customer via outbound satisfaction survey and offer "
-                    "a general 5% loyalty discount."
-                )
-        else:
-            interventions.append("No retention action required: customer exhibits stable customer profile.")
+        interventions = recommended_interventions(customer_dict, scoring["risk_tier"])
 
         return {**scoring, "recommended_interventions": interventions}
 

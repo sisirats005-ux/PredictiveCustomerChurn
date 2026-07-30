@@ -220,3 +220,11 @@ This repository has been reviewed as an end-to-end churn prediction system. The 
 3. Add drift checks for categorical distribution shifts and score distribution shifts before batch outreach campaigns.
 4. Add request/response logging with PII-safe redaction and monitoring around error rates, latency, and score distributions.
 5. Extend CI to include Docker image build validation when artifact size and CI runtime budgets allow it.
+
+### Streamlit SaaS Dashboard Upgrade
+The Streamlit application has been redesigned as **ConnectTel AI Churn Studio**, an enterprise-style decisioning workspace. It keeps the existing prediction backend and executive dashboard, while adding:
+- A wide responsive layout with a branded hero section, modern KPI cards, improved spacing, and color-coded risk badges.
+- A Plotly churn probability gauge and interactive portfolio charts for probability distribution, risk-tier mix, and risk concentration by contract type.
+- Persistent post-submit results using `st.session_state`, which prevents results from disappearing during Streamlit reruns.
+- A customer summary panel, AI explanation panel, recommended retention campaign card, single-customer ROI summary, loading spinner, validation messages, example/reset buttons, and downloadable CSV prediction report.
+- Artifact/runtime validation in `src/predict.py` so scikit-learn compatibility problems fail fast with a clear remediation path instead of producing warnings or delayed prediction failures.

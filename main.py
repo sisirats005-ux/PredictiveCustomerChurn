@@ -152,7 +152,8 @@ def main():
     # threshold and the business ROI narrative stay consistent.
     logger.info("Step 8b: Running cost-sensitive threshold optimization for Logistic Regression...")
     lr_probs = baseline_probs["Logistic Regression"]
-    annual_value, cac, offer_cost = 780.0, 250.0, 50.0
+    from src.business_rules import ANNUAL_VALUE, CAC, OFFER_COST
+    annual_value, cac, offer_cost = ANNUAL_VALUE, CAC, OFFER_COST
     threshold_grid = [0.05, 0.15, 0.20, 0.30, 0.40, 0.50, 0.5715]
     threshold_sweep = []
     for t in threshold_grid:

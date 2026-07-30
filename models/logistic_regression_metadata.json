@@ -1,18 +1,15 @@
 {
-    "sklearn_version": "1.4.2",
-    "joblib_version": "1.4.2",
-    "model_type": "LogisticRegression",
+    "model_name": "Logistic Regression",
     "model_params": {
         "C": 1.0,
         "class_weight": "balanced",
         "dual": false,
         "fit_intercept": true,
         "intercept_scaling": 1,
-        "l1_ratio": null,
+        "l1_ratio": 0.0,
         "max_iter": 1000,
-        "multi_class": "auto",
         "n_jobs": null,
-        "penalty": "l2",
+        "penalty": "deprecated",
         "random_state": 42,
         "solver": "lbfgs",
         "tol": 0.0001,
@@ -24,9 +21,13 @@
         "Precision": 0.5041876046901173,
         "Recall": 0.8048128342245989,
         "F1_Score": 0.619979402677652,
-        "ROC_AUC": 0.8461210571184996
+        "ROC_AUC": 0.8461210571184996,
+        "CV_Accuracy": 0.7538096866671605,
+        "CV_ROC_AUC": 0.8485402929747053
     },
+    "registered_at": "2026-07-24T19:22:17.787057",
     "random_state": 42,
+    "sklearn_version": "1.9.0",
     "threshold_optimization": {
         "method": "Cost-sensitive threshold sweep (expected net retention benefit), cross-checked against Youden's J on the ROC curve",
         "business_assumptions_reused_from": "reports/business_insight_report.md, Section 5 (ARPU annual=$780, CAC=$250, offer cost=$50, campaign success rate=25%)",
@@ -105,6 +106,6 @@
                 "FN": 94
             }
         ],
-        "rationale": "The default 0.5 threshold is not optimal for this business problem. A pure statistical criterion (Youden's J on the ROC curve) picks threshold=0.5715, but this actually reduces Recall (74.9%) relative to 0.5, which is the wrong direction for churn prevention, where a missed churner (~$1,030 in lost annual revenue + replacement CAC) is far more costly than an unnecessary retention offer (~$50). A theoretical cost-ratio threshold (FP_cost / (FP_cost+FN_cost) = 50/1080 = 0.046) swings too far the other way, flagging ~85% of all customers and making the campaign operationally unfocused. Sweeping thresholds against expected net retention benefit on the held-out test set (using the same ARPU, CAC, offer-cost and campaign-success-rate assumptions as the ROI model in Section 5) peaks around threshold=0.30, which recovers 91.7% of true churners (vs 80.5% at 0.5) at an acceptable Precision (43.4%). This threshold is used as the deployed decision boundary in src/predict.py."
+        "rationale": "The default 0.5 threshold is not optimal for this business problem. Youden's J on the ROC curve picks threshold=0.5715, but that reduces Recall relative to 0.5 \u2014 the wrong direction for churn prevention, where missing a churner is far more costly than an unnecessary retention offer. Sweeping thresholds against expected net retention benefit (same ARPU/CAC/offer-cost/success-rate assumptions as the Section 5 ROI model) peaks around threshold=0.30, recovering substantially more true churners than the 0.5 default at an acceptable precision trade-off. This is the threshold used as the deployed decision boundary in src/predict.py."
     }
 }

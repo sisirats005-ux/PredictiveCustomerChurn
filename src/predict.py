@@ -8,12 +8,12 @@ Streamlit deployment app and by the test suite).
 
 import json
 import os
-import warnings
 
 import joblib
 import pandas as pd
 import numpy as np
 
+from src.business_rules import confidence_score
 from src.feature_engineering import create_features
 
 MODEL_PATH = "models/logistic_regression_model.joblib"
@@ -22,38 +22,44 @@ FEATURE_NAMES_PATH = "models/feature_names.joblib"
 METADATA_PATH = "models/logistic_regression_metadata.json"
 
 
-def _check_sklearn_version_match(metadata_path=METADATA_PATH):
-    """
-    Compare the installed scikit-learn version against the version the
-    Logistic Regression model was trained/serialized with. Warns (does
-    not raise) on a mismatch, since this is the leading cause of cryptic
-    unpickling errors such as `'LogisticRegression' object has no
-    attribute 'multi_class'`.
+def _validate_runtime_compatibility(metadata_path=METADATA_PATH):
+    """Validate artifact/runtime compatibility without emitting noisy warnings.
+
+    Production services should either run with the pinned dependency set used
+    to serialize the artifacts or fail fast with a clear remediation message.
+    This avoids the previous UX where Streamlit could continue after a
+    scikit-learn warning and then fail later during prediction.
     """
     if not os.path.exists(metadata_path):
         return
+
     try:
         import sklearn
 
         with open(metadata_path, "r") as f:
             meta = json.load(f)
-
-        trained_version = meta.get("sklearn_version")
-        installed_version = sklearn.__version__
-
-        if trained_version and trained_version != installed_version:
-            warnings.warn(
-                f"models/logistic_regression_model.joblib was saved with "
-                f"scikit-learn {trained_version}, but scikit-learn "
-                f"{installed_version} is installed. Mismatched scikit-learn "
-                "versions can cause loading/prediction errors. Install the "
-                "version pinned in requirements.txt (scikit-learn==1.4.2) "
-                "or retrain the model with your current environment.",
-                RuntimeWarning,
-            )
     except Exception:
-        # Best-effort check only; never block model loading over it.
-        pass
+        return
+
+    trained_version = meta.get("sklearn_version")
+    installed_version = sklearn.__version__
+    if trained_version and trained_version != installed_version:
+        raise RuntimeError(
+            "Model artifact/runtime mismatch: "
+            f"models/logistic_regression_model.joblib was trained with scikit-learn {trained_version}, "
+            f"but scikit-learn {installed_version} is installed. Use the pinned requirements.txt "
+            "environment or retrain the model artifacts with the active runtime before serving predictions."
+        )
+
+
+def _validate_loaded_artifacts(model, preprocessor, feature_names):
+    """Fail fast if loaded artifacts cannot satisfy the inference contract."""
+    if not hasattr(model, "predict_proba"):
+        raise RuntimeError("Loaded model does not implement predict_proba; cannot produce churn probabilities.")
+    if not hasattr(preprocessor, "transform"):
+        raise RuntimeError("Loaded preprocessor does not implement transform; cannot prepare features.")
+    if not feature_names:
+        raise RuntimeError("Loaded feature name list is empty; cannot align model inputs.")
 
 
 def load_artifacts(model_path=MODEL_PATH, preprocessor_path=PREPROCESSOR_PATH,
@@ -88,12 +94,13 @@ def load_artifacts(model_path=MODEL_PATH, preprocessor_path=PREPROCESSOR_PATH,
             "Regression artifacts before launching the app."
         )
 
-    _check_sklearn_version_match()
+    _validate_runtime_compatibility()
 
     try:
         model = joblib.load(model_path)
         preprocessor = joblib.load(preprocessor_path)
         feature_names = joblib.load(feature_names_path)
+        _validate_loaded_artifacts(model, preprocessor, feature_names)
     except AttributeError as exc:
         raise RuntimeError(
             "Failed to load model artifacts due to a scikit-learn version "
@@ -270,6 +277,7 @@ def predict_churn(customer, model=None, preprocessor=None, feature_names=None, t
         - 'persona' (str): customer segment categorization description
         - 'top_risk_factors' (list of str): human-readable churn drivers for this customer
         - 'recommended_action' (str): suggested retention campaign for this customer
+        - 'model_confidence' (float): confidence in the binary prediction
     """
     decision_threshold = threshold if threshold is not None else get_decision_threshold()
 
@@ -282,6 +290,11 @@ def predict_churn(customer, model=None, preprocessor=None, feature_names=None, t
     df = prepare_customer_frame(customer)
 
     X_trans = preprocessor.transform(df)
+    if X_trans.shape[1] != len(feature_names):
+        raise RuntimeError(
+            f"Feature mismatch after preprocessing: transformer produced {X_trans.shape[1]} columns, "
+            f"but the artifact feature list contains {len(feature_names)} names."
+        )
     X_df = pd.DataFrame(X_trans, columns=feature_names, index=df.index)
 
     proba = float(model.predict_proba(X_df)[0, 1])
@@ -319,4 +332,5 @@ def predict_churn(customer, model=None, preprocessor=None, feature_names=None, t
         'persona': persona,
         'top_risk_factors': top_risk_factors(df.loc[0]),
         'recommended_action': recommend_action(risk_tier, df.loc[0]),
+        'model_confidence': confidence_score(proba),
     }

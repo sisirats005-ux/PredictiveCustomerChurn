@@ -70,3 +70,4 @@ business:
   retention_offer_cost: 50.0  # Average cost of promotional/loyalty discount package ($)
   campaign_success_rate: 0.25 # Expected percentage of targeted customers who accept the offer and stay
   market_size: 100000         # Total active customer base size for business impact scaling
+  cac: 250.0                  # Customer Acquisition Cost ($)

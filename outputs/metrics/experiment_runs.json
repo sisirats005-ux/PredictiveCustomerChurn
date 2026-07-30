@@ -326,5 +326,169 @@
             "CV_Accuracy": 0.7532788758410153,
             "CV_ROC_AUC": 0.8438080876051037
         }
+    },
+    {
+        "run_id": "run_1784901132",
+        "run_name": "Baseline Logistic Regression",
+        "timestamp": "2026-07-24T19:22:12.063572",
+        "model_type": "Logistic Regression",
+        "parameters": {
+            "C": 1.0,
+            "class_weight": "balanced",
+            "dual": false,
+            "fit_intercept": true,
+            "intercept_scaling": 1,
+            "l1_ratio": 0.0,
+            "max_iter": 1000,
+            "n_jobs": null,
+            "penalty": "deprecated",
+            "random_state": 42,
+            "solver": "lbfgs",
+            "tol": 0.0001,
+            "verbose": 0,
+            "warm_start": false
+        },
+        "metrics": {
+            "Accuracy": 0.7381121362668559,
+            "Precision": 0.5041876046901173,
+            "Recall": 0.8048128342245989,
+            "F1_Score": 0.619979402677652,
+            "ROC_AUC": 0.8461210571184996,
+            "CV_Accuracy": 0.7538096866671605,
+            "CV_ROC_AUC": 0.8485402929747053
+        }
+    },
+    {
+        "run_id": "run_1784901135",
+        "run_name": "Baseline Random Forest",
+        "timestamp": "2026-07-24T19:22:15.868574",
+        "model_type": "Random Forest",
+        "parameters": {
+            "bootstrap": true,
+            "ccp_alpha": 0.0,
+            "class_weight": "balanced",
+            "criterion": "gini",
+            "max_depth": null,
+            "max_features": "sqrt",
+            "max_leaf_nodes": null,
+            "max_samples": null,
+            "min_impurity_decrease": 0.0,
+            "min_samples_leaf": 1,
+            "min_samples_split": 2,
+            "min_weight_fraction_leaf": 0.0,
+            "monotonic_cst": null,
+            "n_estimators": 100,
+            "n_jobs": null,
+            "oob_score": false,
+            "random_state": 42,
+            "verbose": 0,
+            "warm_start": false
+        },
+        "metrics": {
+            "Accuracy": 0.7622427253371186,
+            "Precision": 0.543046357615894,
+            "Recall": 0.6577540106951871,
+            "F1_Score": 0.5949214026602176,
+            "ROC_AUC": 0.8270324730682787,
+            "CV_Accuracy": 0.7761779729267566,
+            "CV_ROC_AUC": 0.8245466964274325
+        }
+    },
+    {
+        "run_id": "run_1784901137",
+        "run_name": "Baseline XGBoost",
+        "timestamp": "2026-07-24T19:22:17.674877",
+        "model_type": "XGBoost",
+        "parameters": {
+            "objective": "binary:logistic",
+            "base_score": null,
+            "booster": null,
+            "callbacks": null,
+            "colsample_bylevel": null,
+            "colsample_bynode": null,
+            "colsample_bytree": null,
+            "device": null,
+            "early_stopping_rounds": null,
+            "enable_categorical": true,
+            "eval_metric": "logloss",
+            "feature_types": null,
+            "feature_weights": null,
+            "gamma": null,
+            "grow_policy": null,
+            "importance_type": null,
+            "interaction_constraints": null,
+            "learning_rate": null,
+            "max_bin": null,
+            "max_cat_threshold": null,
+            "max_cat_to_onehot": null,
+            "max_delta_step": null,
+            "max_depth": null,
+            "max_leaves": null,
+            "min_child_weight": null,
+            "missing": NaN,
+            "monotone_constraints": null,
+            "multi_strategy": null,
+            "n_estimators": null,
+            "n_jobs": null,
+            "num_parallel_tree": null,
+            "random_state": 42,
+            "reg_alpha": null,
+            "reg_lambda": null,
+            "sampling_method": null,
+            "scale_pos_weight": 2.768561872909699,
+            "subsample": null,
+            "tree_method": null,
+            "validate_parameters": null,
+            "verbosity": null
+        },
+        "metrics": {
+            "Accuracy": 0.7721788502484032,
+            "Precision": 0.5590200445434298,
+            "Recall": 0.6711229946524064,
+            "F1_Score": 0.6099635479951397,
+            "ROC_AUC": 0.8273476452504585,
+            "CV_Accuracy": 0.7646415056871463,
+            "CV_ROC_AUC": 0.8147978677989558
+        }
+    },
+    {
+        "run_id": "run_1784901154",
+        "run_name": "Tuned Random Forest",
+        "timestamp": "2026-07-24T19:22:34.460720",
+        "model_type": "Tuned Random Forest",
+        "parameters": {
+            "max_depth": 5,
+            "min_samples_split": 2,
+            "n_estimators": 100
+        },
+        "metrics": {
+            "Accuracy": 0.7466288147622427,
+            "Precision": 0.5150976909413855,
+            "Recall": 0.7754010695187166,
+            "F1_Score": 0.6189967982924226,
+            "ROC_AUC": 0.839848614017412,
+            "CV_Accuracy": 0.7578922649452089,
+            "CV_ROC_AUC": 0.8432036450705749
+        }
+    },
+    {
+        "run_id": "run_1784901155",
+        "run_name": "Tuned XGBoost",
+        "timestamp": "2026-07-24T19:22:35.398388",
+        "model_type": "Tuned XGBoost",
+        "parameters": {
+            "learning_rate": 0.05,
+            "max_depth": 3,
+            "n_estimators": 100
+        },
+        "metrics": {
+            "Accuracy": 0.7437899219304471,
+            "Precision": 0.5112262521588946,
+            "Recall": 0.7914438502673797,
+            "F1_Score": 0.621196222455404,
+            "ROC_AUC": 0.8440685628665169,
+            "CV_Accuracy": 0.752568711475632,
+            "CV_ROC_AUC": 0.8438561612679807
+        }
     }
 ]

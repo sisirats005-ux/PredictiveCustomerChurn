@@ -22,12 +22,12 @@ WORKDIR /app
 # Create an unprivileged runtime user for safer container execution.
 RUN addgroup --system app && adduser --system --ingroup app app
 
-# Copy installed site-packages from builder stage
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+# Copy user-installed wheels into the global runtime prefix so the non-root
+# app user can import packages without needing access to /root.
+COPY --from=builder /root/.local /usr/local
 
-# Copy all project code
-COPY . /app/
+# Copy all project code with proper ownership for the non-root user
+COPY --chown=app:app . /app/
 
 # Expose port 8000 for FastAPI API, 8501 for Streamlit app
 EXPOSE 8000
@@ -41,5 +41,5 @@ ENV PORT=8000
 
 # Run FastAPI API by default
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()" || exit 1
+    CMD python -c "import json, sys, urllib.request; body = json.load(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)); sys.exit(0 if body.get('model_loaded') else 1)"
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]

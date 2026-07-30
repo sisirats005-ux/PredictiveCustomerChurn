@@ -91,6 +91,51 @@ def test_predict_endpoint_invalid_values(client):
     assert response.status_code == 422
 
 
+def test_predict_endpoint_success_returns_full_schema(client):
+    """Verify a valid POST /predict returns 200 with every documented response field.
+
+    Regression guard: response_model=ChurnResponse silently drops any key
+    predict_churn() returns that isn't also declared on ChurnResponse, so a
+    field can be computed correctly yet never reach the client without this
+    test noticing.
+    """
+    from api import MODEL_LOADED
+    if not MODEL_LOADED:
+        pytest.skip("Model artifacts are not loaded in this environment.")
+
+    payload = {
+        "gender": "Female",
+        "SeniorCitizen": 0,
+        "Partner": "Yes",
+        "Dependents": "No",
+        "tenure": 12,
+        "PhoneService": "Yes",
+        "MultipleLines": "No",
+        "InternetService": "Fiber optic",
+        "OnlineSecurity": "No",
+        "OnlineBackup": "Yes",
+        "DeviceProtection": "No",
+        "TechSupport": "No",
+        "StreamingTV": "Yes",
+        "StreamingMovies": "No",
+        "Contract": "Month-to-month",
+        "PaperlessBilling": "Yes",
+        "PaymentMethod": "Electronic check",
+        "MonthlyCharges": 80.0,
+        "TotalCharges": 960.0,
+    }
+    response = client.post("/predict", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    expected_fields = {
+        "churn_probability", "churn_prediction", "decision_threshold", "risk_tier",
+        "clv", "billing_risk", "high_risk_profile", "persona", "top_risk_factors",
+        "recommended_action", "model_confidence", "recommended_interventions",
+    }
+    assert expected_fields.issubset(data.keys())
+    assert 0.5 <= data["model_confidence"] <= 1.0
+
+
 def test_predict_endpoint_rejects_unknown_categories(client):
     """Verify strict categorical enums prevent unseen/business-invalid values at the API boundary."""
     payload = {
