@@ -40,19 +40,16 @@ from src.business_rules import (
     risk_color,
 )
 from src.feature_engineering import create_features
-from src.predict import get_decision_threshold, load_artifacts, predict_churn, prepare_customer_frame
+from src.predict import (
+    get_decision_threshold,
+    load_artifacts,
+    predict_churn,
+    prepare_customer_frame,
+)
 from src.preprocessing import clean_data, load_data
 from src.utils import load_config, setup_logger
 
 st.set_page_config(page_title="ConnectTel AI Churn Studio", layout="wide", initial_sidebar_state="expanded")
-
-# Module-level logger: mirrors the training-pipeline logger convention in
-# src/utils.py (console + reports/pipeline.log) so Streamlit-side failures
-# (model load errors, per-customer inference errors, executive dashboard
-# batch-scoring errors) land in the same log trail as the training run,
-# instead of only ever being visible to whoever is looking at the browser
-# tab when the error banner renders.
-logger = setup_logger(name="churn_project.app")
 
 RISK_ORDER = ["Low", "Medium", "High"]
 DEFAULT_CUSTOMER = {
@@ -192,9 +189,9 @@ _BASE_CSS = """
     
     /* Style Streamlit sidebar as a premium dark glassmorphic filter drawer */
     section[data-testid="stSidebar"] {
-        width: 320px !important;
-        min-width: 320px !important;
-        max-width: 320px !important;
+        width: 280px !important;
+        min-width: 280px !important;
+        max-width: 280px !important;
         background: rgba(15, 23, 42, 0.97) !important;
         backdrop-filter: blur(10px) !important;
         -webkit-backdrop-filter: blur(10px) !important;
@@ -753,14 +750,16 @@ _BASE_CSS = """
     }
     section[data-testid="stSidebar"] div[data-testid="stRadio"] > div {
         display: flex !important;
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important;
         gap: 0.35rem !important;
         margin-top: 0.1rem !important;
     }
     section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
-        flex: 1 1 0 !important;
+        flex: 1 1 auto !important;
+        min-width: 40% !important;
         min-height: 2.05rem !important;
-        border-radius: 999px !important;
+        height: auto !important;
+        border-radius: 14px !important;
         border: 1px solid rgba(255,255,255,0.12) !important;
         background: rgba(255,255,255,0.04) !important;
         color: #C4CAD9 !important;
@@ -768,6 +767,11 @@ _BASE_CSS = """
         font-weight: 600 !important;
         padding: 0.4rem 0.55rem !important;
         justify-content: center !important;
+        white-space: normal !important;
+        line-height: 1.15 !important;
+        text-align: center !important;
+        position: relative !important;
+        z-index: 1 !important;
     }
     section[data-testid="stSidebar"] div[data-testid="stRadio"] label[data-checked="true"] {
         background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%) !important;
@@ -1076,8 +1080,8 @@ _BASE_CSS = """
     section[data-testid="stSidebar"] {
         transform: none !important;
         visibility: visible !important;
-        min-width: 320px !important;
-        width: 320px !important;
+        min-width: 280px !important;
+        width: 280px !important;
         margin-left: 0px !important;
     }
     button[data-testid="stSidebarCollapseButton"],
@@ -1185,7 +1189,9 @@ def build_customer_from_form():
     if st.session_state.total_charges < 0 or st.session_state.monthly_charges < 0:
         raise ValueError("Charges must be non-negative.")
     if st.session_state.tenure == 0 and st.session_state.total_charges > 0:
-        raise ValueError("A zero-tenure customer should not have positive Total Charges.")
+        raise ValueError(
+            "A zero-tenure customer should not have positive Total Charges."
+        )
     return {
         "gender": st.session_state.gender,
         "SeniorCitizen": 1 if st.session_state.senior_citizen == "Yes" else 0,
@@ -1227,7 +1233,12 @@ def apply_plotly_theme(fig, title=None):
         autosize=True,
         showlegend=True if fig.layout.showlegend is not False else False,
         hovermode="closest",
-        hoverlabel=dict(bgcolor="#171B26", font_size=9, font_family="Inter", bordercolor="rgba(255, 255, 255, 0.12)"),
+        hoverlabel=dict(
+            bgcolor="#171B26",
+            font_size=9,
+            font_family="Inter",
+            bordercolor="rgba(255, 255, 255, 0.12)",
+        ),
     )
     title_text = title or (fig.layout.title.text if has_existing_title else None)
     if title_text:
@@ -1244,7 +1255,7 @@ def apply_plotly_theme(fig, title=None):
                 font=dict(size=8, family="Inter"),
                 bgcolor="rgba(23,27,38,0.85)",
                 bordercolor="rgba(255, 255, 255, 0.12)",
-                borderwidth=1
+                borderwidth=1,
             )
         )
     # Style axes uniformly
@@ -1253,14 +1264,14 @@ def apply_plotly_theme(fig, title=None):
         gridcolor="rgba(255, 255, 255, 0.12)",
         linecolor="rgba(255, 255, 255, 0.12)",
         tickfont=dict(size=8, family="Inter", color="#8890A6"),
-        title_font=dict(size=9, family="Inter", color="#8890A6")
+        title_font=dict(size=9, family="Inter", color="#8890A6"),
     )
     fig.update_yaxes(
         showgrid=True,
         gridcolor="rgba(255, 255, 255, 0.12)",
         linecolor="rgba(255, 255, 255, 0.12)",
         tickfont=dict(size=8, family="Inter", color="#8890A6"),
-        title_font=dict(size=9, family="Inter", color="#8890A6")
+        title_font=dict(size=9, family="Inter", color="#8890A6"),
     )
     return fig
 
@@ -1271,16 +1282,38 @@ def probability_gauge(probability, threshold):
         go.Indicator(
             mode="gauge+number",
             value=probability * 100,
-            number={"suffix": "%", "font": {"size": 24, "family": "Inter", "weight": "bold", "color": "#EDEFF5"}},
+            number={
+                "suffix": "%",
+                "font": {
+                    "size": 24,
+                    "family": "Inter",
+                    "weight": "bold",
+                    "color": "#EDEFF5",
+                },
+            },
             gauge={
-                "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": "#94A3B8", "ticklen": 3},
-                "bar": {"color": risk_color("High" if probability >= 0.6 else "Medium" if probability >= 0.3 else "Low")},
+                "axis": {
+                    "range": [0, 100],
+                    "tickwidth": 1,
+                    "tickcolor": "#94A3B8",
+                    "ticklen": 3,
+                },
+                "bar": {
+                    "color": risk_color(
+                        "High"
+                        if probability >= 0.6
+                        else "Medium" if probability >= 0.3 else "Low"
+                    )
+                },
                 "steps": [
                     {"range": [0, 30], "color": "rgba(16, 185, 129, 0.12)"},
                     {"range": [30, 60], "color": "rgba(245, 158, 11, 0.12)"},
                     {"range": [60, 100], "color": "rgba(239, 68, 68, 0.12)"},
                 ],
-                "threshold": {"line": {"color": "#EDEFF5", "width": 2}, "value": threshold * 100},
+                "threshold": {
+                    "line": {"color": "#EDEFF5", "width": 2},
+                    "value": threshold * 100,
+                },
             },
         )
     )
@@ -1298,7 +1331,7 @@ def factors_chart(factors):
         if len(label) > 28:
             label = label[:25] + "..."
         short_factors.append(label)
-        
+
     scores = list(range(len(factors), 0, -1))
     fig = px.bar(
         x=scores,
@@ -1322,82 +1355,92 @@ def individual_shap_waterfall(model, preprocessor, feature_names, customer_data)
         df = prepare_customer_frame(customer_data)
         X_trans = preprocessor.transform(df)
         import scipy.sparse
+
         if scipy.sparse.issparse(X_trans):
             X_trans = X_trans.toarray()
         X_df = pd.DataFrame(X_trans, columns=feature_names, index=df.index)
-        
+
         coefs = model.coef_[0]
         intercept = model.intercept_[0]
-        
+
         # Calculate contribution to log-odds: coefficient * scaled value
         contributions = X_df.iloc[0].values * coefs
-        
+
         # Create a contributions dataframe
-        contrib_df = pd.DataFrame({
-            "feature": feature_names,
-            "value": X_df.iloc[0].values,
-            "contribution": contributions,
-            "abs_contrib": np.abs(contributions)
-        })
-        
+        contrib_df = pd.DataFrame(
+            {
+                "feature": feature_names,
+                "value": X_df.iloc[0].values,
+                "contribution": contributions,
+                "abs_contrib": np.abs(contributions),
+            }
+        )
+
         # Filter out features with near-zero contributions to keep plot clean
         contrib_df = contrib_df[contrib_df["abs_contrib"] > 1e-4]
         # Sort by absolute contribution descending and take the top 8
         contrib_df = contrib_df.sort_values(by="abs_contrib", ascending=False).head(8)
-        
+
         # Reverse to draw from base towards final prediction
         contrib_df = contrib_df.iloc[::-1]
-        
+
         # Prepare list for waterfall chart
         y_labels = ["Baseline (Intercept)"]
         x_vals = [intercept]
         measures = ["absolute"]
-        
+
         # Base probability calculation
         base_prob = 1.0 / (1.0 + np.exp(-intercept))
         text_labels = [f"Prob: {base_prob:.1%}"]
-        
+
         cumulative_z = intercept
         for _, row in contrib_df.iterrows():
-            feat_name = row["feature"].replace("_", " ").replace("remainder  ", "").replace("remainder ", "")
+            feat_name = (
+                row["feature"]
+                .replace("_", " ")
+                .replace("remainder  ", "")
+                .replace("remainder ", "")
+            )
             if len(feat_name) > 25:
                 feat_name = feat_name[:22] + "..."
-            
+
             val = row["value"]
             # Clean label for binary features vs numerical features
             if val in (0.0, 1.0):
                 label = f"{feat_name}"
             else:
                 label = f"{feat_name} ({val:.1f})"
-                
+
             y_labels.append(label)
             x_vals.append(row["contribution"])
             measures.append("relative")
-            
+
             cumulative_z += row["contribution"]
             step_prob = 1.0 / (1.0 + np.exp(-cumulative_z))
             text_labels.append(f"{row['contribution']:+.2f} (Prob: {step_prob:.1%})")
-            
+
         # Add final prediction total
         y_labels.append("Final Log-Odds")
         x_vals.append(cumulative_z)
         measures.append("total")
         final_prob = 1.0 / (1.0 + np.exp(-cumulative_z))
         text_labels.append(f"Prob: {final_prob:.1%}")
-        
-        fig = go.Figure(go.Waterfall(
-            orientation="h",
-            measure=measures,
-            y=y_labels,
-            x=x_vals,
-            text=text_labels,
-            textposition="outside",
-            connector={"line": {"color": "rgba(255, 255, 255, 0.2)", "width": 1}},
-            decreasing={"marker": {"color": "#34D399"}}, # Green for reducing risk
-            increasing={"marker": {"color": "#F87171"}}, # Red for increasing risk
-            totals={"marker": {"color": "#22D3EE"}},      # Cyan for final
-        ))
-        
+
+        fig = go.Figure(
+            go.Waterfall(
+                orientation="h",
+                measure=measures,
+                y=y_labels,
+                x=x_vals,
+                text=text_labels,
+                textposition="outside",
+                connector={"line": {"color": "rgba(255, 255, 255, 0.2)", "width": 1}},
+                decreasing={"marker": {"color": "#34D399"}},  # Green for reducing risk
+                increasing={"marker": {"color": "#F87171"}},  # Red for increasing risk
+                totals={"marker": {"color": "#22D3EE"}},  # Cyan for final
+            )
+        )
+
         fig.update_layout(
             waterfallgap=0.2,
             height=380,
@@ -1415,7 +1458,7 @@ def individual_shap_waterfall(model, preprocessor, feature_names, customer_data)
         fig.update_layout(
             title=f"Error generating waterfall: {exc}",
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)"
+            plot_bgcolor="rgba(0,0,0,0)",
         )
         return fig
 
@@ -1431,34 +1474,37 @@ def render_explain_ai(model, preprocessor, feature_names):
         unsafe_allow_html=True,
     )
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
-    
+
     # Section 1: Individual Prediction Explanation (Waterfall)
     st.markdown("<div class='panel'>", unsafe_allow_html=True)
-    st.markdown("<h4 class='panel-title' style='color: #22D3EE; font-size: 1.05rem;'>Individual Prediction Explanation</h4>", unsafe_allow_html=True)
-    
+    st.markdown(
+        "<h4 class='panel-title' style='color: #22D3EE; font-size: 1.05rem;'>Individual Prediction Explanation</h4>",
+        unsafe_allow_html=True,
+    )
+
     if st.session_state.prediction_result and st.session_state.prediction_customer:
         res = st.session_state.prediction_result
         cust = st.session_state.prediction_customer
-        
+
         st.markdown(
             f"""
             <div style="font-size: 0.8rem; margin-bottom: 0.6rem; line-height: 1.35; color: #EDEFF5;">
                 Feature impacts are shown as positive or negative contributions to the churn score for <strong>{res['churn_probability']:.1%}</strong> probability.
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
-        
+
         fig = individual_shap_waterfall(model, preprocessor, feature_names, cust)
         st.plotly_chart(fig, use_container_width=True)
-        
+
         st.markdown(
             f"""
             <div style="background: rgba(255,255,255,0.03); padding: 0.55rem 0.7rem; border-radius: 8px; border-left: 3px solid #22D3EE; font-size: 0.76rem; color: #C4CAD9; line-height: 1.35; margin-top: 0.4rem;">
                 <strong>Action:</strong> {res['recommended_action']}
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
     else:
         st.markdown(
@@ -1469,16 +1515,16 @@ def render_explain_ai(model, preprocessor, feature_names):
                 </p>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
-    
+
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
-    
+
     # Section 2: Global Model Explainability (SHAP Summary and Feature Importance)
     col1, col2 = st.columns(2, gap="small", vertical_alignment="top")
     with col1:
-        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 390px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 520px !important;'>", unsafe_allow_html=True)
         st.markdown("<h4 class='panel-title'>Risk drivers</h4>", unsafe_allow_html=True)
         st.markdown(
             """
@@ -1486,17 +1532,20 @@ def render_explain_ai(model, preprocessor, feature_names):
                 Feature values that consistently increase or reduce modeled churn risk.
             </p>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
         import os
+
         if os.path.exists("outputs/plots/shap_summary_plot.png"):
             st.image("outputs/plots/shap_summary_plot.png", use_container_width=True)
         else:
-            st.warning("SHAP Summary Plot not found at outputs/plots/shap_summary_plot.png")
+            st.warning(
+                "SHAP Summary Plot not found at outputs/plots/shap_summary_plot.png"
+            )
         st.markdown("</div>", unsafe_allow_html=True)
-        
+
     with col2:
-        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 390px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 520px !important;'>", unsafe_allow_html=True)
         st.markdown("<h4 class='panel-title'>Feature impact</h4>", unsafe_allow_html=True)
         st.markdown(
             """
@@ -1504,12 +1553,17 @@ def render_explain_ai(model, preprocessor, feature_names):
                 Average influence of each feature on the model's predictions.
             </p>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
         if os.path.exists("outputs/plots/shap_feature_importance_plot.png"):
-            st.image("outputs/plots/shap_feature_importance_plot.png", use_container_width=True)
+            st.image(
+                "outputs/plots/shap_feature_importance_plot.png",
+                use_container_width=True,
+            )
         else:
-            st.warning("SHAP Feature Importance Plot not found at outputs/plots/shap_feature_importance_plot.png")
+            st.warning(
+                "SHAP Feature Importance Plot not found at outputs/plots/shap_feature_importance_plot.png"
+            )
         st.markdown("</div>", unsafe_allow_html=True)
 
 
@@ -1519,10 +1573,10 @@ def format_saas_recommendation(item):
         title, desc = item.split(": ", 1)
     else:
         title, desc = "Account Outreach Action", item
-    
+
     icon = ""
     benefit = "Stabilizes customer relationship"
-    
+
     if "Month-to-Year" in title or "Contract" in title:
         icon = ""
         benefit = "Secures contract commitment (saves $780 ARPU)"
@@ -1538,37 +1592,44 @@ def format_saas_recommendation(item):
     elif "Proactive" in title:
         icon = ""
         benefit = "Proactive save (5% statement offset)"
-        
-    return {
-        "icon": icon,
-        "title": title,
-        "description": desc,
-        "benefit": benefit
-    }
+
+    return {"icon": icon, "title": title, "description": desc, "benefit": benefit}
 
 
 def report_dataframe(customer, result, roi, campaign):
     """Create a one-row downloadable prediction report."""
-    return pd.DataFrame([
-        {
-            "generated_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
-            "churn_probability": result["churn_probability"],
-            "risk_tier": result["risk_tier"],
-            "churn_prediction": result["churn_prediction"],
-            "model_confidence": result["model_confidence"],
-            "customer_lifetime_value": result["clv"],
-            "expected_saved_value": roi["expected_saved_value"],
-            "offer_cost": roi["offer_cost"],
-            "estimated_net_roi": roi["net_roi"],
-            "campaign": campaign,
-            "recommended_action": result["recommended_action"],
-            "top_risk_factors": " | ".join(result["top_risk_factors"]),
-            **customer,
-        }
-    ])
+    return pd.DataFrame(
+        [
+            {
+                "generated_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+                "churn_probability": result["churn_probability"],
+                "risk_tier": result["risk_tier"],
+                "churn_prediction": result["churn_prediction"],
+                "model_confidence": result["model_confidence"],
+                "customer_lifetime_value": result["clv"],
+                "expected_saved_value": roi["expected_saved_value"],
+                "offer_cost": roi["offer_cost"],
+                "estimated_net_roi": roi["net_roi"],
+                "campaign": campaign,
+                "recommended_action": result["recommended_action"],
+                "top_risk_factors": " | ".join(result["top_risk_factors"]),
+                **customer,
+            }
+        ]
+    )
 
 
-def render_metric_card_component(label, value, accent, badge_html, element_id, value_color=None, prefix="", suffix="", numeric_target=None):
+def render_metric_card_component(
+    label,
+    value,
+    accent,
+    badge_html,
+    element_id,
+    value_color=None,
+    prefix="",
+    suffix="",
+    numeric_target=None,
+):
     """Render a compact KPI card with subtle number-count animation."""
     if numeric_target is None:
         display_value = value
@@ -1645,16 +1706,36 @@ def render_kpi_cards(result=None, customer=None):
         probability = result["churn_probability"]
         confidence = result.get("model_confidence", confidence_score(probability))
         roi = estimate_retention_roi(probability, result["clv"])
-        
+
         risk_tier = result["risk_tier"]
         prob_color = risk_color(risk_tier)
-        prob_bg = "rgba(239, 68, 68, 0.12)" if risk_tier == "High" else "rgba(245, 158, 11, 0.12)" if risk_tier == "Medium" else "rgba(16, 185, 129, 0.12)"
-        prob_badge_color = "#F87171" if risk_tier == "High" else "#FBBF24" if risk_tier == "Medium" else "#34D399"
+        prob_bg = (
+            "rgba(239, 68, 68, 0.12)"
+            if risk_tier == "High"
+            else (
+                "rgba(245, 158, 11, 0.12)"
+                if risk_tier == "Medium"
+                else "rgba(16, 185, 129, 0.12)"
+            )
+        )
+        prob_badge_color = (
+            "#F87171"
+            if risk_tier == "High"
+            else "#FBBF24" if risk_tier == "Medium" else "#34D399"
+        )
         prob_status = f'<span class="kpi-status-badge" style="background: {prob_bg}; color: {prob_badge_color};">{risk_tier} Risk</span>'
 
         conf_bg = "rgba(34, 211, 238, 0.12)"
         conf_badge_color = "#22D3EE"
-        conf_status_text = "Very High" if confidence >= 0.8 else "High" if confidence >= 0.6 else "Medium" if confidence >= 0.4 else "Low"
+        conf_status_text = (
+            "Very High"
+            if confidence >= 0.8
+            else (
+                "High"
+                if confidence >= 0.6
+                else "Medium" if confidence >= 0.4 else "Low"
+            )
+        )
         conf_status = f'<span class="kpi-status-badge" style="background: {conf_bg}; color: {conf_badge_color};">{conf_status_text}</span>'
 
         clv_bg = "rgba(167, 139, 250, 0.12)"
@@ -1673,24 +1754,92 @@ def render_kpi_cards(result=None, customer=None):
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         if result and customer:
-            render_metric_card_component("Churn Probability", f"{probability:.1%}", "#EF4444", prob_status, "kpi-prob", value_color=prob_color, prefix="", suffix="", numeric_target=probability * 100)
+            render_metric_card_component(
+                "Churn Probability",
+                f"{probability:.1%}",
+                "#EF4444",
+                prob_status,
+                "kpi-prob",
+                value_color=prob_color,
+                prefix="",
+                suffix="",
+                numeric_target=probability * 100,
+            )
         else:
-            render_metric_card_component("Churn Probability", "—", "#EF4444", prob_status, "kpi-prob", value_color="#A2AAC0")
+            render_metric_card_component(
+                "Churn Probability",
+                "—",
+                "#EF4444",
+                prob_status,
+                "kpi-prob",
+                value_color="#A2AAC0",
+            )
     with k2:
         if result and customer:
-            render_metric_card_component("Model Confidence", f"{confidence:.1%}", "#22D3EE", conf_status, "kpi-conf", value_color="#EDEFF5", prefix="", suffix="", numeric_target=confidence * 100)
+            render_metric_card_component(
+                "Model Confidence",
+                f"{confidence:.1%}",
+                "#22D3EE",
+                conf_status,
+                "kpi-conf",
+                value_color="#EDEFF5",
+                prefix="",
+                suffix="",
+                numeric_target=confidence * 100,
+            )
         else:
-            render_metric_card_component("Model Confidence", "—", "#22D3EE", conf_status, "kpi-conf", value_color="#EDEFF5")
+            render_metric_card_component(
+                "Model Confidence",
+                "—",
+                "#22D3EE",
+                conf_status,
+                "kpi-conf",
+                value_color="#EDEFF5",
+            )
     with k3:
         if result and customer:
-            render_metric_card_component("Estimated CLV", f"${result['clv']:,.0f}", "#A78BFA", clv_status, "kpi-clv", value_color="#EDEFF5", prefix="$", suffix="", numeric_target=float(result['clv']))
+            render_metric_card_component(
+                "Estimated CLV",
+                f"${result['clv']:,.0f}",
+                "#A78BFA",
+                clv_status,
+                "kpi-clv",
+                value_color="#EDEFF5",
+                prefix="$",
+                suffix="",
+                numeric_target=float(result["clv"]),
+            )
         else:
-            render_metric_card_component("Estimated CLV", "—", "#A78BFA", clv_status, "kpi-clv", value_color="#EDEFF5")
+            render_metric_card_component(
+                "Estimated CLV",
+                "—",
+                "#A78BFA",
+                clv_status,
+                "kpi-clv",
+                value_color="#EDEFF5",
+            )
     with k4:
         if result and customer:
-            render_metric_card_component("Expected ROI", f"${roi['net_roi']:,.0f}", "#10B981", roi_status, "kpi-roi", value_color="#10B981" if roi['net_roi'] >= 0 else "#A2AAC0", prefix="$", suffix="", numeric_target=float(roi['net_roi']))
+            render_metric_card_component(
+                "Expected ROI",
+                f"${roi['net_roi']:,.0f}",
+                "#10B981",
+                roi_status,
+                "kpi-roi",
+                value_color="#10B981" if roi["net_roi"] >= 0 else "#A2AAC0",
+                prefix="$",
+                suffix="",
+                numeric_target=float(roi["net_roi"]),
+            )
         else:
-            render_metric_card_component("Expected ROI", "—", "#10B981", roi_status, "kpi-roi", value_color="#A2AAC0")
+            render_metric_card_component(
+                "Expected ROI",
+                "—",
+                "#10B981",
+                roi_status,
+                "kpi-roi",
+                value_color="#A2AAC0",
+            )
 
 
 def build_ai_executive_summary(result, customer, roi):
@@ -1726,31 +1875,52 @@ def render_prediction_result(result, customer):
     )
 
     st.markdown("<div class='panel ai-summary-panel'>", unsafe_allow_html=True)
-    st.markdown(f"<div class='ai-summary-headline'>{summary['headline']}</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='ai-summary-headline'>{summary['headline']}</div>",
+        unsafe_allow_html=True,
+    )
     if summary["body"]:
-        st.markdown(f"<div class='ai-summary-copy'>{summary['body']}</div>", unsafe_allow_html=True)
-    st.markdown("<div class='ai-summary-row'>" + "".join([f"<span class='mini-badge'>{badge}</span>" for badge in summary["badges"]]) + "</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='ai-summary-copy'>{summary['body']}</div>",
+            unsafe_allow_html=True,
+        )
+    st.markdown(
+        "<div class='ai-summary-row'>"
+        + "".join(
+            [f"<span class='mini-badge'>{badge}</span>" for badge in summary["badges"]]
+        )
+        + "</div>",
+        unsafe_allow_html=True,
+    )
     st.markdown("</div>", unsafe_allow_html=True)
 
     # Row 2: Radial Gauge (left 45%) and Customer Profile (right 55%) side-by-side (equal height)
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     row2_left, row2_right = st.columns([0.45, 0.55], gap="small")
     with row2_left:
-        st.markdown("<div class='panel' style='min-height: 140px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 185px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Risk gauge</h5>", unsafe_allow_html=True)
-        st.plotly_chart(probability_gauge(probability, result["decision_threshold"]), width="stretch", config={'responsive': True})
-        pred_label = "CHURN (High Churn Risk)" if result['churn_prediction'] == 1 else "RETAIN (Low Churn Risk)"
-        pred_color = "#f87171" if result['churn_prediction'] == 1 else "#34d399"
+        st.plotly_chart(
+            probability_gauge(probability, result["decision_threshold"]),
+            width="stretch",
+            config={"responsive": True},
+        )
+        pred_label = (
+            "CHURN (High Churn Risk)"
+            if result["churn_prediction"] == 1
+            else "RETAIN (Low Churn Risk)"
+        )
+        pred_color = "#f87171" if result["churn_prediction"] == 1 else "#34d399"
         st.markdown(
             f"<div style='font-size: 0.8rem; color: #A2AAC0; margin-top: 0.2rem; text-align: center;'>"
             f"Decision threshold: <strong>{result['decision_threshold']:.2f}</strong> · "
             f"Prediction: <strong style='color: {pred_color};'>{pred_label}</strong>"
             f"</div>",
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
         st.markdown("</div>", unsafe_allow_html=True)
     with row2_right:
-        st.markdown("<div class='panel' style='min-height: 140px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 185px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Profile</h5>", unsafe_allow_html=True)
         chips = [
             f"Persona: {result['persona']}",
@@ -1760,20 +1930,38 @@ def render_prediction_result(result, customer):
             f"Tenure: {customer['tenure']}m",
             f"Pay: {customer['PaymentMethod']}",
         ]
-        st.markdown("<div class='chip-wrap'>" + "".join([f"<span class='chip-pill active'>{chip}</span>" for chip in chips]) + "</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='chip-wrap'>"
+            + "".join(
+                [f"<span class='chip-pill active'>{chip}</span>" for chip in chips]
+            )
+            + "</div>",
+            unsafe_allow_html=True,
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Row 3: SHAP Feature Importance (left 45%) and CRM Recommendation Timeline (right 55%) side-by-side (equal height)
     row3_left, row3_right = st.columns([0.45, 0.55], gap="small")
     with row3_left:
-        st.markdown("<div class='panel' style='min-height: 158px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 210px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Drivers</h5>", unsafe_allow_html=True)
-        st.plotly_chart(factors_chart(result["top_risk_factors"]), width="stretch", config={'responsive': True})
-        drivers_html = " ".join([f"<span class='mini-badge'>{factor}</span>" for factor in result["top_risk_factors"][:3]])
-        st.markdown(f"<div class='ai-summary-row'>{drivers_html}</div>", unsafe_allow_html=True)
+        st.plotly_chart(
+            factors_chart(result["top_risk_factors"]),
+            width="stretch",
+            config={"responsive": True},
+        )
+        drivers_html = " ".join(
+            [
+                f"<span class='mini-badge'>{factor}</span>"
+                for factor in result["top_risk_factors"][:3]
+            ]
+        )
+        st.markdown(
+            f"<div class='ai-summary-row'>{drivers_html}</div>", unsafe_allow_html=True
+        )
         st.markdown("</div>", unsafe_allow_html=True)
     with row3_right:
-        st.markdown("<div class='panel' style='min-height: 158px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 210px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Retention plan</h5>", unsafe_allow_html=True)
         strategy_cards = [
             {
@@ -1782,7 +1970,7 @@ def render_prediction_result(result, customer):
                 "value": roi["expected_saved_value"] * 0.9,
                 "cost": roi["offer_cost"] * 0.6,
                 "roi": 6.1,
-                "accent": "#22D3EE"
+                "accent": "#22D3EE",
             },
             {
                 "title": "Contract Stabilization",
@@ -1790,7 +1978,7 @@ def render_prediction_result(result, customer):
                 "value": roi["expected_saved_value"] * 0.8,
                 "cost": roi["offer_cost"] * 0.7,
                 "roi": 5.1,
-                "accent": "#10B981"
+                "accent": "#10B981",
             },
             {
                 "title": "Service Recovery",
@@ -1798,7 +1986,7 @@ def render_prediction_result(result, customer):
                 "value": roi["expected_saved_value"] * 0.7,
                 "cost": roi["offer_cost"] * 0.5,
                 "roi": 4.4,
-                "accent": "#F59E0B"
+                "accent": "#F59E0B",
             },
         ]
         for card in strategy_cards:
@@ -1823,43 +2011,56 @@ def render_prediction_result(result, customer):
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     r1, r2, r3 = st.columns(3)
     with r1:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="roi-card" style="--accent: #22D3EE;">
             <div class="roi-info">
                 <div class="roi-label">Expected Saved Value</div>
                 <div class="roi-val">${roi['expected_saved_value']:,.0f}</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
     with r2:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="roi-card" style="--accent: #F59E0B;">
             <div class="roi-info">
                 <div class="roi-label">Campaign Cost</div>
                 <div class="roi-val">${roi['offer_cost']:,.0f}</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
     with r3:
-        roi_txt = "#34D399" if roi['net_roi'] >= 0 else "#F87171"
-        st.markdown(f"""
+        roi_txt = "#34D399" if roi["net_roi"] >= 0 else "#F87171"
+        st.markdown(
+            f"""
         <div class="roi-card" style="--accent: {roi_txt};">
             <div class="roi-info">
                 <div class="roi-label">Net Retention ROI</div>
                 <div class="roi-val" style="color: {roi_txt};">${roi['net_roi']:,.0f}</div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
     st.markdown("</div>", unsafe_allow_html=True)
 
-    csv = report_dataframe(customer, result, roi, campaign).to_csv(index=False).encode("utf-8")
+    csv = (
+        report_dataframe(customer, result, roi, campaign)
+        .to_csv(index=False)
+        .encode("utf-8")
+    )
     st.download_button(
         "Download prediction report (CSV)",
         data=csv,
         file_name="connecttel_churn_prediction_report.csv",
         mime="text/csv",
         type="primary",
-        width="stretch"
+        width="stretch",
     )
 
 
@@ -1871,12 +2072,24 @@ def render_sidebar_drawer(metadata, decision_threshold):
             <h3 style="color: #EDEFF5; font-size: 0.95rem; font-weight: 800; margin: 0;">Customer Filters</h3>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
 
-    st.sidebar.button("Example: High Risk", on_click=load_example_customer, width="stretch", type="secondary")
-    st.sidebar.button("Example: Low Risk", on_click=load_low_risk_customer, width="stretch", type="secondary")
-    st.sidebar.button("Reset", on_click=reset_customer, width="stretch", type="secondary")
+    st.sidebar.button(
+        "Example: High Risk",
+        on_click=load_example_customer,
+        width="stretch",
+        type="secondary",
+    )
+    st.sidebar.button(
+        "Example: Low Risk",
+        on_click=load_low_risk_customer,
+        width="stretch",
+        type="secondary",
+    )
+    st.sidebar.button(
+        "Reset", on_click=reset_customer, width="stretch", type="secondary"
+    )
 
     st.sidebar.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
 
@@ -1884,59 +2097,152 @@ def render_sidebar_drawer(metadata, decision_threshold):
         # 1. Customer Details Collapsible Section
         with st.expander("Customer Details", expanded=True):
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Tenure (months)</div>", unsafe_allow_html=True)
-            st.number_input("Tenure (months)", min_value=0, max_value=100, key="tenure", label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Tenure (months)</div>",
+                unsafe_allow_html=True,
+            )
+            st.number_input(
+                "Tenure (months)",
+                min_value=0,
+                max_value=100,
+                key="tenure",
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Contract type</div>", unsafe_allow_html=True)
-            st.radio("Contract Type", ["Month-to-month", "One year", "Two year"], key="contract", horizontal=True, label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Contract type</div>",
+                unsafe_allow_html=True,
+            )
+            st.radio(
+                "Contract Type",
+                ["Month-to-month", "One year", "Two year"],
+                key="contract",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
-            
+
         # 2. Demographics Collapsible Section
         with st.expander("Demographics", expanded=False):
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Gender</div>", unsafe_allow_html=True)
-            st.radio("Gender", ["Female", "Male"], key="gender", horizontal=True, label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Gender</div>", unsafe_allow_html=True
+            )
+            st.radio(
+                "Gender",
+                ["Female", "Male"],
+                key="gender",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             d1, d2 = st.columns(2)
             with d1:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Senior citizen</div>", unsafe_allow_html=True)
-                st.radio("Senior Citizen", ["No", "Yes"], key="senior_citizen", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Senior citizen</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Senior Citizen",
+                    ["No", "Yes"],
+                    key="senior_citizen",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             with d2:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Partner status</div>", unsafe_allow_html=True)
-                st.radio("Partner Status", ["No", "Yes"], key="partner", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Partner status</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Partner Status",
+                    ["No", "Yes"],
+                    key="partner",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Dependents</div>", unsafe_allow_html=True)
-            st.radio("Dependents", ["No", "Yes"], key="dependents", horizontal=True, label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Dependents</div>",
+                unsafe_allow_html=True,
+            )
+            st.radio(
+                "Dependents",
+                ["No", "Yes"],
+                key="dependents",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
         # 3. Billing Collapsible Section
         with st.expander("Billing", expanded=False):
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Monthly charges</div>", unsafe_allow_html=True)
-            st.number_input("Monthly Charges ($)", min_value=0.0, step=0.5, key="monthly_charges", label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Monthly charges</div>",
+                unsafe_allow_html=True,
+            )
+            st.number_input(
+                "Monthly Charges ($)",
+                min_value=0.0,
+                step=0.5,
+                key="monthly_charges",
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Total charges</div>", unsafe_allow_html=True)
-            st.number_input("Total Charges ($)", min_value=0.0, step=1.0, key="total_charges", label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Total charges</div>",
+                unsafe_allow_html=True,
+            )
+            st.number_input(
+                "Total Charges ($)",
+                min_value=0.0,
+                step=1.0,
+                key="total_charges",
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Paperless billing</div>", unsafe_allow_html=True)
-            st.radio("Paperless Billing", ["No", "Yes"], key="paperless_billing", horizontal=True, label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Paperless billing</div>",
+                unsafe_allow_html=True,
+            )
+            st.radio(
+                "Paperless Billing",
+                ["No", "Yes"],
+                key="paperless_billing",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Payment method</div>", unsafe_allow_html=True)
-            st.selectbox("Payment Method", ["Electronic check", "Mailed check", "Bank transfer (automatic)", "Credit card (automatic)"], key="payment_method", index=0)
+            st.markdown(
+                "<div class='filter-card-label'>Payment method</div>",
+                unsafe_allow_html=True,
+            )
+            st.selectbox(
+                "Payment Method",
+                [
+                    "Electronic check",
+                    "Mailed check",
+                    "Bank transfer (automatic)",
+                    "Credit card (automatic)",
+                ],
+                key="payment_method",
+                index=0,
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
         # 4. Services Collapsible Section
@@ -1944,63 +2250,150 @@ def render_sidebar_drawer(metadata, decision_threshold):
             s1, s2 = st.columns(2)
             with s1:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Phone service</div>", unsafe_allow_html=True)
-                st.radio("Phone Service", ["No", "Yes"], key="phone_service", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Phone service</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Phone Service",
+                    ["No", "Yes"],
+                    key="phone_service",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             with s2:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Multiple lines</div>", unsafe_allow_html=True)
-                st.radio("Multiple Lines", ["No", "Yes", "No phone service"], key="multiple_lines", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Multiple lines</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Multiple Lines",
+                    ["No", "Yes", "No phone service"],
+                    key="multiple_lines",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
             st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-            st.markdown("<div class='filter-card-label'>Internet service</div>", unsafe_allow_html=True)
-            st.radio("Internet Service", ["DSL", "Fiber optic", "No"], key="internet_service", horizontal=True, label_visibility="collapsed")
+            st.markdown(
+                "<div class='filter-card-label'>Internet service</div>",
+                unsafe_allow_html=True,
+            )
+            st.radio(
+                "Internet Service",
+                ["DSL", "Fiber optic", "No"],
+                key="internet_service",
+                horizontal=True,
+                label_visibility="collapsed",
+            )
             st.markdown("</div>", unsafe_allow_html=True)
 
             s3, s4 = st.columns(2)
             with s3:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Online security</div>", unsafe_allow_html=True)
-                st.radio("Online Security", ["No", "Yes", "No internet service"], key="online_security", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Online security</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Online Security",
+                    ["No", "Yes", "No internet service"],
+                    key="online_security",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             with s4:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Online backup</div>", unsafe_allow_html=True)
-                st.radio("Online Backup", ["No", "Yes", "No internet service"], key="online_backup", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Online backup</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Online Backup",
+                    ["No", "Yes", "No internet service"],
+                    key="online_backup",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
             s5, s6 = st.columns(2)
             with s5:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Device protection</div>", unsafe_allow_html=True)
-                st.radio("Device Protection", ["No", "Yes", "No internet service"], key="device_protection", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Device protection</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Device Protection",
+                    ["No", "Yes", "No internet service"],
+                    key="device_protection",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             with s6:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Tech support</div>", unsafe_allow_html=True)
-                st.radio("Tech Support", ["No", "Yes", "No internet service"], key="tech_support", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Tech support</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Tech Support",
+                    ["No", "Yes", "No internet service"],
+                    key="tech_support",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
             s7, s8 = st.columns(2)
             with s7:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Streaming TV</div>", unsafe_allow_html=True)
-                st.radio("Streaming TV", ["No", "Yes", "No internet service"], key="streaming_tv", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Streaming TV</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Streaming TV",
+                    ["No", "Yes", "No internet service"],
+                    key="streaming_tv",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
             with s8:
                 st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
-                st.markdown("<div class='filter-card-label'>Streaming movies</div>", unsafe_allow_html=True)
-                st.radio("Streaming Movies", ["No", "Yes", "No internet service"], key="streaming_movies", horizontal=True, label_visibility="collapsed")
+                st.markdown(
+                    "<div class='filter-card-label'>Streaming movies</div>",
+                    unsafe_allow_html=True,
+                )
+                st.radio(
+                    "Streaming Movies",
+                    ["No", "Yes", "No internet service"],
+                    key="streaming_movies",
+                    horizontal=True,
+                    label_visibility="collapsed",
+                )
                 st.markdown("</div>", unsafe_allow_html=True)
 
-        submitted = st.form_submit_button("Run Risk Prediction", type="primary", width="stretch")
+        submitted = st.form_submit_button(
+            "Run Risk Prediction", type="secondary", width="stretch"
+        )
 
     # Render model governance info inside filter drawer sidebar at the bottom
-    st.sidebar.markdown("<div class='section-gap' style='height: 1.1rem !important;'></div>", unsafe_allow_html=True)
+    st.sidebar.markdown(
+        "<div class='section-gap' style='height: 1.1rem !important;'></div>",
+        unsafe_allow_html=True,
+    )
     with st.sidebar.expander("Model Governance", expanded=False):
         metrics = metadata.get("metrics", {})
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="font-size: 0.76rem; line-height: 1.35; color: #A2AAC0;">
             <strong>Accuracy:</strong> {metrics.get('Accuracy', 0):.3f}<br>
             <strong>Precision:</strong> {metrics.get('Precision', 0):.3f}<br>
@@ -2009,7 +2402,9 @@ def render_sidebar_drawer(metadata, decision_threshold):
             <strong>Model Type:</strong> {metadata.get('model_type', 'LogisticRegression')}<br>
             <strong>Decision Threshold:</strong> {decision_threshold:.2f}
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     return submitted
 
@@ -2026,9 +2421,13 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
         unsafe_allow_html=True,
     )
 
-    scored = score_full_customer_base(model, preprocessor, feature_names, decision_threshold)
+    scored = score_full_customer_base(
+        model, preprocessor, feature_names, decision_threshold
+    )
     total_customers = len(scored)
-    tier_counts = scored["risk_tier"].value_counts().reindex(RISK_ORDER).fillna(0).astype(int)
+    tier_counts = (
+        scored["risk_tier"].value_counts().reindex(RISK_ORDER).fillna(0).astype(int)
+    )
     flagged_churners = int(scored["churn_prediction"].sum())
     precision_estimate = 0.434 if abs(decision_threshold - 0.30) < 1e-6 else 0.504
     roi = batch_roi(flagged_churners, precision_estimate)
@@ -2036,10 +2435,12 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     # Level 1: Modern Business Cards inside the report container
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     k1, k2, k3, k4 = st.columns(4, gap="small")
-    
-    high_risk_pct = tier_counts["High"] / total_customers if total_customers > 0 else 0.0
+
+    high_risk_pct = (
+        tier_counts["High"] / total_customers if total_customers > 0 else 0.0
+    )
     retention_pct = flagged_churners / total_customers if total_customers > 0 else 0.0
-    
+
     with k1:
         st.markdown(
             f"""
@@ -2088,8 +2489,11 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     # Executive Summary and AI Insights Section
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     st.markdown("<div class='panel'>", unsafe_allow_html=True)
-    st.markdown("<h4 class='panel-title' style='color: #22D3EE; font-size: 1.05rem;'>Portfolio snapshot</h4>", unsafe_allow_html=True)
-    
+    st.markdown(
+        "<h4 class='panel-title' style='color: #22D3EE; font-size: 1.05rem;'>Portfolio snapshot</h4>",
+        unsafe_allow_html=True,
+    )
+
     ins1, ins2 = st.columns([0.6, 0.4], gap="small")
     with ins1:
         st.markdown(
@@ -2100,7 +2504,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
                 </p>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
     with ins2:
         st.markdown(
@@ -2124,7 +2528,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
                 </div>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -2132,40 +2536,50 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     chart1, chart2 = st.columns([1, 1], gap="small")
     with chart1:
-        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Customer Risk Segmentation</h5>", unsafe_allow_html=True)
         fig = px.pie(
             names=tier_counts.index,
             values=tier_counts.values,
             hole=0.55,
             color=tier_counts.index,
-            color_discrete_map={"Low": "#34D399", "Medium": "#FBBF24", "High": "#F87171"},
+            color_discrete_map={
+                "Low": "#34D399",
+                "Medium": "#FBBF24",
+                "High": "#F87171",
+            },
         )
         apply_plotly_theme(fig)
         fig.update_layout(height=200, legend_title_text="Risk")
-        st.plotly_chart(fig, width="stretch", config={'responsive': True})
+        st.plotly_chart(fig, width="stretch", config={"responsive": True})
         st.markdown("</div>", unsafe_allow_html=True)
     with chart2:
-        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Predicted Churn Score Distribution</h5>", unsafe_allow_html=True)
         hist = px.histogram(
             scored,
             x="churn_probability",
             nbins=30,
             color="risk_tier",
-            color_discrete_map={"Low": "#34D399", "Medium": "#FBBF24", "High": "#F87171"},
+            color_discrete_map={
+                "Low": "#34D399",
+                "Medium": "#FBBF24",
+                "High": "#F87171",
+            },
         )
         hist.add_vline(x=decision_threshold, line_dash="dash", line_color="#EDEFF5")
         apply_plotly_theme(hist)
-        hist.update_layout(height=200, xaxis_tickformat=".0%", bargap=0.03, legend_title_text="Risk")
-        st.plotly_chart(hist, width="stretch", config={'responsive': True})
+        hist.update_layout(
+            height=200, xaxis_tickformat=".0%", bargap=0.03, legend_title_text="Risk"
+        )
+        st.plotly_chart(hist, width="stretch", config={"responsive": True})
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Level 3: Segment Concentration Charts
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     chart3, chart4 = st.columns([1, 1], gap="small")
     with chart3:
-        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Customer Risk Segmentation by Contract Type</h5>", unsafe_allow_html=True)
         segment = (
             scored.groupby(["Contract", "risk_tier"], observed=False)
@@ -2178,14 +2592,18 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
             y="customers",
             color="risk_tier",
             barmode="group",
-            color_discrete_map={"Low": "#34D399", "Medium": "#FBBF24", "High": "#F87171"},
+            color_discrete_map={
+                "Low": "#34D399",
+                "Medium": "#FBBF24",
+                "High": "#F87171",
+            },
         )
         apply_plotly_theme(fig_segment)
         fig_segment.update_layout(height=200, legend_title_text="Risk")
-        st.plotly_chart(fig_segment, width="stretch", config={'responsive': True})
+        st.plotly_chart(fig_segment, width="stretch", config={"responsive": True})
         st.markdown("</div>", unsafe_allow_html=True)
     with chart4:
-        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Customer Risk Segmentation by Internet Service</h5>", unsafe_allow_html=True)
         segment_internet = (
             scored.groupby(["InternetService", "risk_tier"], observed=False)
@@ -2198,11 +2616,17 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
             y="customers",
             color="risk_tier",
             barmode="group",
-            color_discrete_map={"Low": "#34D399", "Medium": "#FBBF24", "High": "#F87171"},
+            color_discrete_map={
+                "Low": "#34D399",
+                "Medium": "#FBBF24",
+                "High": "#F87171",
+            },
         )
         apply_plotly_theme(fig_segment_internet)
         fig_segment_internet.update_layout(height=200, legend_title_text="Risk")
-        st.plotly_chart(fig_segment_internet, width="stretch", config={'responsive': True})
+        st.plotly_chart(
+            fig_segment_internet, width="stretch", config={"responsive": True}
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Level 4: Business Summary Model Details
@@ -2315,11 +2739,14 @@ if submitted:
             progress_bar.progress(index / 4)
             time.sleep(0.12)
         st.session_state.prediction_result = predict_churn(
-            customer, model=model, preprocessor=preprocessor, feature_names=feature_names
+            customer,
+            model=model,
+            preprocessor=preprocessor,
+            feature_names=feature_names,
         )
         st.session_state.prediction_customer = customer
         status_placeholder.markdown(
-            "<div class='ai-processing-card'>✅ Done. The summary and next steps are ready.</div>",
+            "<div class='ai-processing-card'>Done. The summary and next steps are ready.</div>",
             unsafe_allow_html=True,
         )
         progress_bar.progress(1.0)
@@ -2341,7 +2768,9 @@ if submitted:
 
 # Custom Horizontal Header Navbar (Logo, Page Selection Routing, Profile Indicators)
 st.markdown("<div class='nav-header-row'>", unsafe_allow_html=True)
-nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([0.44, 0.18, 0.18, 0.18, 0.02], gap="small")
+nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns(
+    [0.44, 0.18, 0.18, 0.18, 0.02], gap="small"
+)
 with nav_col1:
     st.markdown(
         """
@@ -2355,11 +2784,27 @@ with nav_col1:
         unsafe_allow_html=True,
     )
 with nav_col2:
-    predict_clicked = st.button("Predictive Analysis", width="stretch", type="primary" if st.session_state.active_tab == "Predict" else "secondary")
+    predict_clicked = st.button(
+        "Predictive Analysis",
+        width="stretch",
+        type="primary" if st.session_state.active_tab == "Predict" else "secondary",
+    )
 with nav_col3:
-    explain_clicked = st.button("Explain AI", width="stretch", type="primary" if st.session_state.active_tab == "Explain" else "secondary")
+    explain_clicked = st.button(
+        "Explain AI",
+        width="stretch",
+        type="primary" if st.session_state.active_tab == "Explain" else "secondary",
+    )
 with nav_col4:
-    exec_clicked = st.button("Executive Dashboard", width="stretch", type="primary" if st.session_state.active_tab == "Executive Dashboard" else "secondary")
+    exec_clicked = st.button(
+        "Executive Dashboard",
+        width="stretch",
+        type=(
+            "primary"
+            if st.session_state.active_tab == "Executive Dashboard"
+            else "secondary"
+        ),
+    )
 with nav_col5:
     st.markdown(
         """
@@ -2387,16 +2832,20 @@ st.markdown(
     """
     <div style="height: 3px; background: linear-gradient(90deg, #22D3EE 0%, #10B981 100%); border-radius: 2px; margin-bottom: 0.55rem;"></div>
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )
 
 # Screen routing based on custom navbar state
 if st.session_state.active_tab == "Predict":
     # Render horizontal 100px KPI Cards (displays '-' placeholder fallbacks if no prediction has been run yet)
-    render_kpi_cards(st.session_state.prediction_result, st.session_state.prediction_customer)
-    
+    render_kpi_cards(
+        st.session_state.prediction_result, st.session_state.prediction_customer
+    )
+
     if st.session_state.prediction_result and st.session_state.prediction_customer:
-        render_prediction_result(st.session_state.prediction_result, st.session_state.prediction_customer)
+        render_prediction_result(
+            st.session_state.prediction_result, st.session_state.prediction_customer
+        )
     else:
         # Professional empty state block when no prediction has been triggered yet
         st.markdown(
@@ -2422,7 +2871,7 @@ if st.session_state.active_tab == "Predict":
                 </div>
             </div>
             """,
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
 elif st.session_state.active_tab == "Explain":
@@ -2430,7 +2879,9 @@ elif st.session_state.active_tab == "Explain":
 else:
     with st.spinner("Scoring full customer base for the executive portfolio view..."):
         try:
-            render_executive_dashboard(model, preprocessor, feature_names, decision_threshold)
+            render_executive_dashboard(
+                model, preprocessor, feature_names, decision_threshold
+            )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Executive dashboard batch-scoring failed: %s", exc)
             st.error(f"Could not render executive portfolio: {exc}")

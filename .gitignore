@@ -1,7 +1,22 @@
+# Virtual Environment
+venv/
 .venv/
+
+# Python
 __pycache__/
 *.pyc
-.ipynb_checkpoints/
-.env
+
+# Logs
+*.log
+reports/pipeline.log
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
 .vscode/
 .idea/
