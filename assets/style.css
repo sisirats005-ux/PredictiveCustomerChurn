@@ -1,0 +1,1391 @@
+<style>
+/* ================================
+   GOOGLE FONTS
+================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ================================
+   GLOBAL
+================================ */
+
+html,
+body,
+[class*="css"],
+.stMarkdown,
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: "Inter", sans-serif !important;
+}
+
+html {
+    color-scheme: dark;
+}
+
+body {
+    background: #0F172A;
+}
+
+/* ================================
+   MAIN PAGE
+================================ */
+
+.stApp {
+    background: linear-gradient(180deg, #0F172A 0%, #111827 100%);
+}
+
+.main {
+    background: transparent !important;
+}
+
+.main .block-container {
+
+    max-width: 1500px;
+
+    margin: auto;
+
+    padding-top: .35rem;
+
+    padding-bottom: .5rem;
+
+    padding-left: 1rem;
+
+    padding-right: 1rem;
+}
+
+/* ================================
+   SCROLLBAR
+================================ */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0A0D14;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #2A3142;
+    border-radius: 10px;
+}
+
+/* ================================
+   STREAMLIT HEADER
+================================ */
+
+header[data-testid="stHeader"] {
+
+    background: transparent !important;
+
+    height: 2.2rem;
+}
+
+header[data-testid="stHeader"] [data-testid="stToolbar"],
+header[data-testid="stHeader"] [data-testid="stDecoration"] {
+
+    display: none !important;
+}
+
+footer {
+    display: none;
+}
+
+/* ================================
+   SIDEBAR
+================================ */
+
+section[data-testid="stSidebar"] {
+
+    width: 360px !important;
+
+    min-width: 360px !important;
+
+    max-width: 360px !important;
+
+    background: #111827 !important;
+
+    border-right: 1px solid rgba(255, 255, 255, .06);
+}
+
+section[data-testid="stSidebar"] .stVerticalBlock {
+
+    padding: .55rem !important;
+
+    gap: .55rem !important;
+}
+
+section[data-testid="stSidebar"] .stButton>button {
+
+    width: 100%;
+
+    border-radius: 10px;
+
+    min-height: 40px;
+
+    font-weight: 600;
+}
+
+section[data-testid="stSidebar"] .stExpander {
+
+    background: #182230 !important;
+
+    border: 1px solid rgba(255, 255, 255, .06);
+
+    border-radius: 12px;
+
+    margin-bottom: .55rem;
+}
+
+section[data-testid="stSidebar"] summary {
+
+    color: #F8FAFC;
+
+    font-weight: 700;
+
+    font-size: .82rem;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stForm"] {
+
+    background: transparent;
+
+    border: none;
+
+    box-shadow: none;
+
+    padding: 0;
+}
+
+
+/* Dark analytics-console Card Design */
+.panel {
+    background: linear-gradient(180deg, #1E293B 0%, #172033 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 12px !important;
+    padding: 10px 11px !important;
+    box-shadow: 0 8px 20px -12px rgba(0, 0, 0, 0.5) !important;
+    margin-bottom: 0px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    height: 100% !important;
+}
+
+.section-gap {
+    height: 0.28rem !important;
+}
+
+.panel-title {
+    margin: 0 0 0.2rem 0 !important;
+    color: #EDEFF5 !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+}
+
+.chip-wrap {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.3rem !important;
+    margin-top: 0.3rem !important;
+}
+
+.chip-pill {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 999px !important;
+    padding: 0.25rem 0.55rem !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    color: #C4CAD9 !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.chip-pill.active {
+    color: #F8FAFC !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.24), rgba(56, 189, 248, 0.14)) !important;
+}
+
+.ai-summary-panel {
+    padding: 0.6rem 0.7rem !important;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(16, 185, 129, 0.10)) !important;
+    border: 1px solid rgba(56, 189, 248, 0.18) !important;
+    margin-bottom: 0.3rem !important;
+    border-radius: 12px !important;
+}
+
+.ai-summary-headline {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: #F8FAFC !important;
+    margin-bottom: 0.2rem !important;
+    line-height: 1.25 !important;
+}
+
+.ai-summary-copy {
+    font-size: 0.78rem !important;
+    color: #DCE3EF !important;
+    line-height: 1.3 !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.ai-summary-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    margin-top: 0.2rem !important;
+}
+
+.mini-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.2rem 0.45rem !important;
+    border-radius: 999px !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    color: #F8FAFC !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.strategy-card {
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-left: 3px solid var(--accent, #22D3EE) !important;
+    border-radius: 12px !important;
+    padding: 0.45rem 0.55rem !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.strategy-title {
+    font-size: 0.76rem !important;
+    font-weight: 700 !important;
+    color: #F8FAFC !important;
+    margin-bottom: 0.15rem !important;
+}
+
+.strategy-metrics {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 0.25rem !important;
+    font-size: 0.68rem !important;
+    color: #DCE3EF !important;
+    margin-top: 0.2rem !important;
+}
+
+.strategy-metrics strong {
+    color: #F8FAFC !important;
+}
+
+.ai-processing-card {
+    border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    border-radius: 10px !important;
+    padding: 0.5rem 0.6rem !important;
+    background: rgba(37, 99, 235, 0.12) !important;
+    color: #EDEFF5 !important;
+    font-size: 0.78rem !important;
+    margin-bottom: 0.35rem !important;
+}
+
+.panel-subtitle {
+    margin: 0 0 0.35rem 0 !important;
+    color: #8890A6 !important;
+    font-size: 0.74rem !important;
+    line-height: 1.35 !important;
+}
+
+/* Single-sheet BI Report Container for Executive tab. Flat/borderless --
+       the sections inside it are their own .panel cards, so this container
+       only needs to set the outer page padding, not add a second card
+       border around the whole thing (that reads as a card-in-a-card). */
+.bi-report-container {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0px !important;
+    padding: 0px !important;
+    box-shadow: none !important;
+    margin-bottom: 0px !important;
+    box-sizing: border-box !important;
+}
+
+.panel {
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.35s ease !important;
+    animation: cardFadeIn 0.45s ease both !important;
+}
+
+.panel:hover {
+    border-color: rgba(37, 99, 235, 0.22) !important;
+    box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+@keyframes cardFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ============================================================
+       UI/UX POLISH LAYER (visual-only, no logic/state touched)
+       Responsive container, tighter/consistent spacing, equal-height
+       metric rows, no-wrap buttons, nav alignment, type hierarchy.
+       ============================================================ */
+
+/* 4. Center everything inside a responsive max-width column */
+.main .block-container {
+    max-width: 1440px !important;
+}
+
+@media (max-width: 1500px) {
+    .main .block-container {
+        max-width: 96vw !important;
+    }
+}
+
+/* 1. Responsive columns: let Streamlit's horizontal blocks wrap
+       instead of squeezing on narrow / tablet viewports */
+@media (max-width: 900px) {
+    div[data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]>div[data-testid="stColumn"] {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    section[data-testid="stSidebar"] {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* 8. Equal-height metric/KPI cards: stretch columns so every card
+       in a row matches the tallest sibling, and make the card itself
+       fill that height */
+div[data-testid="stHorizontalBlock"] {
+    align-items: stretch !important;
+}
+
+div[data-testid="stHorizontalBlock"]>div[data-testid="stColumn"] {
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+div[data-testid="stColumn"]>div,
+div[data-testid="stColumn"]>div>div[data-testid="stVerticalBlock"] {
+    height: 100% !important;
+}
+
+.kpi-card-horizontal,
+.roi-card {
+    height: 100% !important;
+}
+
+/* 7. Prevent button label wrapping across all buttons */
+div.stButton>button,
+div[data-testid="stFormSubmitButton"]>button,
+div[data-testid="stDownloadButton"]>button,
+button[data-testid^="stBaseButton"] {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* 6. Navbar alignment: keep brand/tabs/avatar vertically centered
+       and evenly balanced at any width */
+.nav-header-row {
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+}
+
+@media (max-width: 900px) {
+    .nav-header-row {
+        flex-wrap: wrap !important;
+        row-gap: 0.5rem !important;
+    }
+}
+
+/* 9. Consistent breathing room between stacked dashboard sections */
+div[data-testid="stVerticalBlock"]>div[data-testid="stElementContainer"] {
+    margin-bottom: 0.55rem !important;
+}
+
+.section-gap {
+    height: 0.9rem !important;
+}
+
+/* 5. Typography hierarchy pass */
+h1 {
+    font-size: 1.7rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+}
+
+h2 {
+    font-size: 1.25rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.01em !important;
+}
+
+h3 {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+}
+
+/* Heading styling */
+h4,
+h5 {
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 700 !important;
+    color: #EDEFF5 !important;
+    margin: 0 0 0.3rem 0 !important;
+    font-size: 0.84rem !important;
+    letter-spacing: 0.01em !important;
+}
+
+p,
+li,
+.stMarkdown {
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+}
+
+h3 {
+    color: #EDEFF5 !important;
+}
+
+.stCaption,
+[data-testid="stCaptionContainer"],
+.stMarkdown small {
+    color: #9AA3B7 !important;
+}
+
+/* Premium Compact 100px KPI Card. A colored left-accent border (set
+       per-card via the --accent custom property) stands in for a category
+       icon -- clean, legible, and doesn't depend on an emoji glyph. */
+.kpi-card-horizontal {
+    background: linear-gradient(180deg, #1E293B 0%, #172033 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-left: 3px solid var(--accent, #2563EB) !important;
+    border-radius: 12px !important;
+    padding: 0.55rem 0.8rem !important;
+    box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.45) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.55rem !important;
+    height: 62px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.35s ease !important;
+    animation: cardFadeIn 0.5s ease both !important;
+}
+
+.kpi-card-horizontal:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 8px 18px -10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.strategy-card {
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease !important;
+}
+
+.strategy-card:hover {
+    transform: translateY(-1px) !important;
+    border-color: rgba(56, 189, 248, 0.26) !important;
+}
+
+.risk-badge {
+    transition: transform 0.2s ease, opacity 0.2s ease !important;
+}
+
+.risk-badge:hover {
+    transform: translateY(-1px) !important;
+}
+
+div.stButton>button,
+div[data-testid="stFormSubmitButton"]>button,
+div[data-testid="stDownloadButton"]>button,
+button[data-testid^="stBaseButton"] {
+    transition: transform 0.18s ease, border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+div.stButton>button:hover,
+div[data-testid="stFormSubmitButton"]>button:hover,
+div[data-testid="stDownloadButton"]>button:hover,
+button[data-testid^="stBaseButton"]:hover {
+    transform: translateY(-1px) !important;
+}
+
+.kpi-metric-name {
+    color: #8890A6 !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    margin: 0 !important;
+    line-height: 1.2 !important;
+}
+
+.kpi-metric-value {
+    color: #EDEFF5 !important;
+    font-size: 1.45rem !important;
+    font-weight: 800 !important;
+    margin: 0 !important;
+    line-height: 1.1 !important;
+    font-family: 'JetBrains Mono', 'Inter', monospace !important;
+}
+
+.kpi-status-badge {
+    display: inline-block !important;
+    padding: 0.15rem 0.55rem !important;
+    border-radius: 4px !important;
+    font-size: 0.7rem !important;
+    font-weight: 600 !important;
+    width: fit-content !important;
+    flex-shrink: 0 !important;
+}
+
+/* Risk Badge */
+.risk-badge {
+    display: inline-block !important;
+    color: #EDEFF5 !important;
+    padding: 0.25rem 0.7rem !important;
+    border-radius: 999px !important;
+    font-weight: 700 !important;
+    font-size: 0.74rem !important;
+    letter-spacing: 0.02em !important;
+    margin-bottom: 0.35rem !important;
+    background: rgba(37, 99, 235, 0.15) !important;
+    border: 1px solid rgba(37, 99, 235, 0.2) !important;
+    box-shadow: none !important;
+}
+
+/* Custom Vertical CRM Timeline nodes */
+.timeline {
+    position: relative !important;
+    padding-left: 1.5rem !important;
+    border-left: 2px solid rgba(255, 255, 255, 0.08) !important;
+    margin-left: 0.6rem !important;
+    margin-top: 0.5rem !important;
+}
+
+.timeline-item {
+    margin-bottom: 0.65rem !important;
+    position: relative !important;
+}
+
+.timeline-node {
+    position: absolute !important;
+    left: -1.95rem !important;
+    top: 0.15rem !important;
+    width: 10px !important;
+    height: 10px !important;
+    border-radius: 50% !important;
+    border: 2px solid #0F131B !important;
+    box-shadow: 0 0 8px -1px currentColor !important;
+}
+
+.timeline-title {
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    color: #EDEFF5 !important;
+    margin-bottom: 0.1rem !important;
+}
+
+.timeline-desc {
+    font-size: 0.75rem !important;
+    color: #A2AAC0 !important;
+    line-height: 1.3 !important;
+}
+
+/* ROI Cards styling. Same left-accent-border pattern as the KPI cards
+       above, driven by --accent, instead of an empty icon circle. */
+.roi-card {
+    background: linear-gradient(180deg, #1E293B 0%, #172033 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-left: 3px solid var(--accent, #2563EB) !important;
+    border-radius: 14px !important;
+    padding: 0.65rem 0.9rem !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.6rem !important;
+    box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.45) !important;
+    height: 100%;
+    transition: transform 0.2s ease !important;
+}
+
+.roi-card:hover {
+    transform: translateY(-1px) !important;
+}
+
+.roi-info {
+    flex: 1 !important;
+}
+
+.roi-label {
+    color: #8890A6 !important;
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    margin-bottom: 0.1rem;
+}
+
+.roi-val {
+    color: #EDEFF5 !important;
+    font-size: 1.15rem !important;
+    font-weight: 700 !important;
+    font-family: 'JetBrains Mono', 'Inter', monospace !important;
+}
+
+/* Sidebar filter drawer refinement */
+section[data-testid="stSidebar"] {
+    padding-left: 0.2rem !important;
+    padding-right: 0.2rem !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+    padding-top: 0.25rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    gap: 0.35rem !important;
+}
+
+section[data-testid="stSidebar"] .filter-card {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 12px !important;
+    padding: 0.6rem 0.7rem !important;
+    margin-bottom: 0.45rem !important;
+}
+
+section[data-testid="stSidebar"] .filter-card-label {
+    font-size: 0.74rem !important;
+    font-weight: 700 !important;
+    color: #EDEFF5 !important;
+    margin-bottom: 0.38rem !important;
+    letter-spacing: 0.01em !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stRadio"]>div {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 0.35rem !important;
+    margin-top: 0.1rem !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
+    flex: 1 1 0 !important;
+    min-height: 2.05rem !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+    color: #C4CAD9 !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    padding: 0.4rem 0.55rem !important;
+    justify-content: center !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stRadio"] label[data-checked="true"] {
+    background: linear-gradient(90deg, #2563EB 0%, #38BDF8 100%) !important;
+    border-color: transparent !important;
+    color: #F8FAFC !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stNumberInput"] {
+    margin-bottom: 0.1rem !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stNumberInput"]>div,
+section[data-testid="stSidebar"] div[data-testid="stSelectbox"]>div,
+section[data-testid="stSidebar"] div[data-testid="stTextInput"]>div {
+    min-height: 2.2rem !important;
+    border-radius: 10px !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stFormSubmitButton"]>button {
+    min-height: 2.35rem !important;
+    border-radius: 10px !important;
+}
+
+/* Bold compact input form labels */
+.stMarkdown label,
+.stSelectbox label,
+.stNumberInput label {
+    font-weight: 700 !important;
+    font-size: 0.78rem !important;
+    color: #C4CAD9 !important;
+    margin-bottom: 0.1rem !important;
+}
+
+/* Compact inputs, dark styled. Streamlit/BaseWeb nests inputs several
+       divs deep and sets its own background on the innermost node, so we
+       force every descendant transparent and only paint the outer shell dark
+       -- otherwise you get a white box with white-on-white text. */
+/* Force native form-control color scheme dark first -- kills the
+       browser default WHITE background some select/number controls fall
+       back to before any custom CSS even applies. */
+html {
+    color-scheme: dark !important;
+}
+
+/* Compact inputs, dark styled. Streamlit/BaseWeb nests inputs several
+       divs deep and sets its own background on the innermost node, so we
+       force every descendant transparent and only paint the outer shell dark
+       -- otherwise you get a white box with white-on-white text. Target by
+       both data-baseweb AND data-testid wrapper, since the exact nesting
+       differs between the closed control and open popover. */
+section[data-testid="stSidebar"] div[data-testid="stForm"] {
+    background: linear-gradient(180deg, #12161F 0%, #0F131B 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 14px !important;
+    padding: 0.7rem !important;
+    box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.45) !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stSelectbox"],
+section[data-testid="stSidebar"] div[data-testid="stNumberInput"],
+section[data-testid="stSidebar"] div[data-testid="stTextInput"] {
+    width: 100% !important;
+    margin-bottom: 0.25rem !important;
+}
+
+div[data-testid="stSelectbox"] div[data-baseweb="select"]>div,
+div[data-testid="stNumberInput"] div[data-baseweb="input"]>div,
+div[data-testid="stTextInput"] div[data-baseweb="input"]>div,
+div[data-baseweb="select"],
+div[data-baseweb="input"],
+div[data-baseweb="base-input"] {
+    min-height: 2.25rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    background-color: #171B26 !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    font-size: 0.82rem !important;
+}
+
+/* The selected-value span is a flex child next to the chevron icon.
+       min-width:0 above (needed so the control itself can shrink inside
+       narrow 118px sidebar columns) also shrinks THIS child to 0, so the
+       chosen value disappears and only the chevron is left visible.
+       Give the value span its own flex-grow + visible overflow so it
+       always shows the current selection. */
+div[data-baseweb="select"]>div>div:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: block !important;
+}
+
+div[data-testid="stSelectbox"] *,
+div[data-testid="stNumberInput"] *,
+div[data-testid="stTextInput"] *,
+div[data-baseweb="select"] *,
+div[data-baseweb="input"] *,
+div[data-baseweb="base-input"] * {
+    background-color: transparent !important;
+    color: #EDEFF5 !important;
+    -webkit-text-fill-color: #EDEFF5 !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    fill: #8890A6 !important;
+}
+
+/* The 2-up sidebar rows (Tenure/Contract, Phone/Lines, etc.) live in
+       st.columns() inside a 320px sidebar -- without an explicit min-width
+       a long option label can force the flex column to shrink to near
+       nothing, which is what made "Contract" render as a blank sliver.
+       That min-width alone isn't enough though: Streamlit's column row
+       defaults to flex-wrap, so once the two 118px columns + 16px gap
+       don't fit the available width (they don't, inside an expander's
+       own padding), the SECOND column wraps onto its own line below the
+       first -- which is why the whole s1 stack (Phone/Internet/Backup/
+       Support/Movies) rendered before the whole s2 stack (Lines/Security/
+       Protection/Streaming TV) instead of side-by-side pairs. Force
+       nowrap and let each column truly share the row equally instead. */
+section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"]>div {
+    min-width: 0 !important;
+    flex: 1 1 0px !important;
+    width: 0 !important;
+}
+
+div[data-baseweb="select"]>div,
+div[data-baseweb="input"]>div {
+    height: 100% !important;
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+}
+
+input,
+textarea,
+select {
+    background-color: transparent !important;
+    color: #EDEFF5 !important;
+    -webkit-text-fill-color: #EDEFF5 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #8890A6 !important;
+    -webkit-text-fill-color: #8890A6 !important;
+}
+
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] *,
+div[data-baseweb="menu"],
+div[data-baseweb="menu"] * {
+    background-color: #171B26 !important;
+}
+
+div[data-testid="stSelectboxVirtualDropdown"] {
+    background-color: #171B26 !important;
+    min-width: 180px !important;
+}
+
+div[data-testid="stSelectboxVirtualDropdown"] * {
+    background-color: #171B26 !important;
+}
+
+ul[role="listbox"] {
+    background-color: #171B26 !important;
+    min-width: max-content !important;
+    width: max-content !important;
+}
+
+[role="listbox"] {
+    background-color: #171B26 !important;
+}
+
+li[role="option"] {
+    color: #EDEFF5 !important;
+    background-color: #171B26 !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    min-width: max-content !important;
+}
+
+[role="option"] {
+    color: #EDEFF5 !important;
+    background-color: #171B26 !important;
+}
+
+li[role="option"] * {
+    color: #EDEFF5 !important;
+    white-space: nowrap !important;
+}
+
+[role="option"] * {
+    color: #EDEFF5 !important;
+    background-color: transparent !important;
+}
+
+li[role="option"]:hover,
+li[role="option"][aria-selected="true"] {
+    background-color: rgba(34, 211, 238, 0.12) !important;
+}
+
+[role="option"]:hover,
+[role="option"][aria-selected="true"],
+[role="option"][data-selected="true"] {
+    background-color: rgba(34, 211, 238, 0.15) !important;
+}
+
+li[role="option"]:hover *,
+li[role="option"][aria-selected="true"] * {
+    color: #22D3EE !important;
+}
+
+[role="option"]:hover *,
+[role="option"][aria-selected="true"] *,
+[role="option"][data-selected="true"] * {
+    color: #22D3EE !important;
+}
+
+button[data-baseweb="button"][aria-label*="Clear"] svg,
+[data-testid="stNumberInputStepUp"],
+[data-testid="stNumberInputStepDown"] {
+    color: #8890A6 !important;
+}
+
+section[data-testid="stSidebar"] .stMarkdown label,
+section[data-testid="stSidebar"] .stSelectbox label,
+section[data-testid="stSidebar"] .stNumberInput label {
+    font-size: 0.74rem !important;
+    font-weight: 700 !important;
+    color: #EDEFF5 !important;
+    margin-bottom: 0.18rem !important;
+    letter-spacing: 0.01em !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stExpander"] [data-testid="stVerticalBlock"] {
+    gap: 0.35rem !important;
+}
+
+/* Compact Expander Panels (borderless) */
+div[data-testid="stExpander"] {
+    background-color: #12161F !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 12px !important;
+    margin-bottom: 0.25rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* The summary/header row ships its own light background separate from
+       the expander container above -- must be overridden explicitly or it
+       stays a bright white bar. */
+div[data-testid="stExpander"] summary,
+div[data-testid="stExpander"] details {
+    background-color: transparent !important;
+    color: #C4CAD9 !important;
+}
+
+div[data-testid="stExpander"] summary * {
+    background-color: transparent !important;
+    color: #C4CAD9 !important;
+}
+
+div[data-testid="stExpander"] summary {
+    padding: 0.3rem 0.6rem !important;
+    font-weight: 600 !important;
+    font-size: 0.78rem !important;
+}
+
+div[data-testid="stExpander"] summary:hover {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+div[data-testid="stExpander"] svg {
+    fill: #8890A6 !important;
+}
+
+div[data-testid="stExpander"] [data-testid="stVerticalBlock"] {
+    padding: 0.3rem 0.6rem 0.55rem 0.6rem !important;
+    gap: 0.3rem !important;
+}
+
+/* Native Form container overrides */
+div[data-testid="stForm"] {
+    background-color: #12161F !important;
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-radius: 14px !important;
+    padding: 1rem !important;
+    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.4) !important;
+}
+
+div.stButton>button,
+div[data-testid="stFormSubmitButton"]>button,
+div[data-testid="stDownloadButton"]>button,
+button[data-testid^="stBaseButton"] {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    padding: 0.35rem 0.9rem !important;
+    font-size: 0.78rem !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+div[data-testid="stFormSubmitButton"]>button,
+div[data-testid="stDownloadButton"]>button {
+    background: linear-gradient(180deg, #111827 0%, #0F172A 100%) !important;
+    color: #EDEFF5 !important;
+    border: 1px solid rgba(37, 99, 235, 0.28) !important;
+    box-shadow: none !important;
+}
+
+div[data-testid="stFormSubmitButton"]>button:hover,
+div[data-testid="stDownloadButton"]>button:hover {
+    background: linear-gradient(180deg, #172033 0%, #111827 100%) !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+button[data-testid^="stBaseButton-primary"] {
+    background-color: #2563EB !important;
+    color: #F8FAFC !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+button[data-testid^="stBaseButton-primary"]:hover {
+    background-color: #3B82F6 !important;
+    box-shadow: none !important;
+}
+
+button[data-testid^="stBaseButton-secondary"] {
+    border: 1px solid rgba(37, 99, 235, 0.25) !important;
+    color: #EDEFF5 !important;
+    background-color: transparent !important;
+}
+
+button[data-testid^="stBaseButton-secondary"]:hover {
+    background-color: rgba(37, 99, 235, 0.1) !important;
+    color: #38BDF8 !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+.muted {
+    color: #8890A6;
+    font-size: 0.8rem;
+}
+
+/* Prevent sidebar labels ("Tenure", "Contract"...) from breaking mid-word
+       in the narrow 2-column form layout. */
+section[data-testid="stSidebar"] label p {
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+}
+
+
+/* Horizontal block spacings overrides */
+div[data-testid="stHorizontalBlock"] {
+    gap: 10px !important;
+}
+
+div[data-testid="stVerticalBlock"]>div {
+    margin-bottom: 0px !important;
+    margin-top: 0px !important;
+}
+
+/* Sidebar is a permanently docked Filter Drawer, not a collapsible
+       panel -- multiple Streamlit versions store "collapsed" state in the
+       browser and re-hide it on reload with no visible way back in. Lock
+       it open and remove every version of the collapse control instead. */
+section[data-testid="stSidebar"] {
+    transform: none !important;
+    visibility: visible !important;
+    min-width: 420px !important;
+    width: 420px !important;
+    margin-left: 0px !important;
+}
+
+button[data-testid="stSidebarCollapseButton"],
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+}
+
+</style>"" "
+
+st.markdown(_BASE_CSS, unsafe_allow_html=True) @st.cache_resource(show_spinner=False) def get_artifacts(): "" "Load and cache model artifacts once per Streamlit session." ""
+return load_artifacts() @st.cache_data(show_spinner=False) def get_model_metadata(): "" "Load deployed model metadata for KPI display." ""
+
+metadata_path=os.path.join("models", "logistic_regression_metadata.json") if not os.path.exists(metadata_path): return {}
+
+with open(metadata_path, "r") as f: return json.load(f) @st.cache_data(show_spinner="Scoring historical portfolio...") def score_full_customer_base(_model, _preprocessor, _feature_names, threshold): "" "Batch-score the historical base for executive dashboard visualizations." ""
+config=load_config() df_raw=load_data(config["data"]["raw_path"]) df_clean, _=clean_data(df_raw) df_eng=create_features(df_clean) X=df_eng.drop(columns=[config["data"]["target_col"]]) X_trans=_preprocessor.transform(X) if X_trans.shape[1] !=len(_feature_names): raise RuntimeError(f"Feature mismatch while scoring portfolio: got {X_trans.shape[1]} columns, "
+    f"expected {len(_feature_names)}."
+
+) X_df=pd.DataFrame(X_trans, columns=_feature_names, index=X.index) probs=_model.predict_proba(X_df)[:, 1] return pd.DataFrame({
+    "churn_probability": probs,
+    "churn_prediction": (probs >=threshold).astype(int),
+    "risk_tier": pd.cut(probs, bins=[-0.01, 0.3, 0.6, 1.01], labels=RISK_ORDER),
+    "Contract": X["Contract"].values,
+    "InternetService": X["InternetService"].values,
+    "PaymentMethod": X["PaymentMethod"].values,
+    "MonthlyCharges": X["MonthlyCharges"].values,
+}) def _apply_profile_to_widgets(profile): "" "Push a customer profile directly into each widget's session_state key." ""
+st.session_state.tenure=int(profile["tenure"]) st.session_state.monthly_charges=float(profile["MonthlyCharges"]) st.session_state.total_charges=float(profile["TotalCharges"]) st.session_state.contract=profile["Contract"] st.session_state.paperless_billing=profile["PaperlessBilling"] st.session_state.payment_method=profile["PaymentMethod"] st.session_state.gender=profile["gender"] st.session_state.senior_citizen="Yes" if profile["SeniorCitizen"] else "No"
+st.session_state.partner=profile["Partner"] st.session_state.dependents=profile["Dependents"] st.session_state.phone_service=profile["PhoneService"] st.session_state.multiple_lines=profile["MultipleLines"] st.session_state.internet_service=profile["InternetService"] st.session_state.online_security=profile["OnlineSecurity"] st.session_state.online_backup=profile["OnlineBackup"] st.session_state.device_protection=profile["DeviceProtection"] st.session_state.tech_support=profile["TechSupport"] st.session_state.streaming_tv=profile["StreamingTV"] st.session_state.streaming_movies=profile["StreamingMovies"] def reset_customer(): st.session_state.customer_defaults=DEFAULT_CUSTOMER.copy() _apply_profile_to_widgets(DEFAULT_CUSTOMER) st.session_state.prediction_result=None st.session_state.prediction_customer=None def load_example_customer(): st.session_state.customer_defaults=DEFAULT_CUSTOMER.copy() _apply_profile_to_widgets(DEFAULT_CUSTOMER) st.session_state.prediction_result=None st.session_state.prediction_customer=None def load_low_risk_customer(): st.session_state.customer_defaults=LOW_RISK_CUSTOMER.copy() _apply_profile_to_widgets(LOW_RISK_CUSTOMER) st.session_state.prediction_result=None st.session_state.prediction_customer=None def build_customer_from_form(): "" "Build a validated customer payload from Streamlit widget state." ""
+
+if st.session_state.total_charges < 0 or st.session_state.monthly_charges < 0: raise ValueError("Charges must be non-negative.") if st.session_state.tenure==0 and st.session_state.total_charges>0: raise ValueError("A zero-tenure customer should not have positive Total Charges.") return {
+    "gender": st.session_state.gender,
+        "SeniorCitizen": 1 if st.session_state.senior_citizen=="Yes" else 0,
+        "Partner": st.session_state.partner,
+        "Dependents": st.session_state.dependents,
+        "tenure": int(st.session_state.tenure),
+        "PhoneService": st.session_state.phone_service,
+        "MultipleLines": st.session_state.multiple_lines,
+        "InternetService": st.session_state.internet_service,
+        "OnlineSecurity": st.session_state.online_security,
+        "OnlineBackup": st.session_state.online_backup,
+        "DeviceProtection": st.session_state.device_protection,
+        "TechSupport": st.session_state.tech_support,
+        "StreamingTV": st.session_state.streaming_tv,
+        "StreamingMovies": st.session_state.streaming_movies,
+        "Contract": st.session_state.contract,
+        "PaperlessBilling": st.session_state.paperless_billing,
+        "PaymentMethod": st.session_state.payment_method,
+        "MonthlyCharges": float(st.session_state.monthly_charges),
+        "TotalCharges": float(st.session_state.total_charges),
+}
+
+
+def apply_plotly_theme(fig, title=None): "" "Enforces a consistent clean enterprise styling across all Plotly charts.
+
+`title=None` means "leave whatever title the chart already has alone"
+(e.g. one set via px.pie/px.bar's own `title=` kwarg). It must NOT be
+ forwarded straight into update_layout, since Plotly treats an explicit `title=None` as "clear the title" -- that was wiping out every px-level chart title (Risk Tier Mix, Churn Probability Distribution, etc.). "" "
+ has_existing_title=bool(fig.layout.title and fig.layout.title.text) layout_kwargs=dict(font=dict(family="Inter", color="#C4CAD9"),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(l=5, r=5, t=38 if (title or has_existing_title) else 5, b=5),
+        autosize=True,
+        showlegend=True if fig.layout.showlegend is not False else False,
+        hovermode="closest",
+        hoverlabel=dict(bgcolor="#171B26", font_size=9, font_family="Inter", bordercolor="rgba(255, 255, 255, 0.12)"),
+    ) title_text=title or (fig.layout.title.text if has_existing_title else None) if title_text: layout_kwargs["title"]=dict(text=title_text,
+        font=dict(size=13, family="Inter", color="#EDEFF5", weight="bold"),
+        x=0.0,
+        y=0.96,
+    ) fig.update_layout(**layout_kwargs) if hasattr(fig, "layout") and fig.layout.legend: fig.update_layout(legend=dict(font=dict(size=8, family="Inter"),
+            bgcolor="rgba(23,27,38,0.85)",
+            bordercolor="rgba(255, 255, 255, 0.12)",
+            borderwidth=1)) # Style axes uniformly fig.update_xaxes(showgrid=True,
+        gridcolor="rgba(255, 255, 255, 0.12)",
+        linecolor="rgba(255, 255, 255, 0.12)",
+        tickfont=dict(size=8, family="Inter", color="#8890A6"),
+        title_font=dict(size=9, family="Inter", color="#8890A6")) fig.update_yaxes(showgrid=True,
+        gridcolor="rgba(255, 255, 255, 0.12)",
+        linecolor="rgba(255, 255, 255, 0.12)",
+        tickfont=dict(size=8, family="Inter", color="#8890A6"),
+        title_font=dict(size=9, family="Inter", color="#8890A6")) return fig def probability_gauge(probability, threshold): "" "Build a large premium radial gauge chart." ""
+
+    fig=go.Figure(go.Indicator(mode="gauge+number",
+            value=probability * 100,
+            number= {
+                "suffix": "%", "font": {
+                    "size": 24, "family": "Inter", "weight": "bold", "color": "#EDEFF5"
+                }
+            }
+
+            ,
+            gauge= {
+                "axis": {
+                    "range": [0, 100], "tickwidth": 1, "tickcolor": "#94A3B8", "ticklen": 3
+                }
+
+                ,
+                "bar": {
+                    "color": risk_color("High" if probability >=0.6 else "Medium" if probability >=0.3 else "Low")
+                }
+
+                ,
+                "steps": [ {
+                    "range": [0, 30], "color": "rgba(16, 185, 129, 0.12)"
+                }
+
+                ,
+                {
+                "range": [30, 60], "color": "rgba(245, 158, 11, 0.12)"
+            }
+
+            ,
+            {
+            "range": [60, 100], "color": "rgba(239, 68, 68, 0.12)"
+        }
+
+        ,
+        ],
+        "threshold": {
+            "line": {
+                "color": "#EDEFF5", "width": 2
+            }
+
+            , "value": threshold * 100
+        }
+
+        ,
+    }
+
+    ,
+)) apply_plotly_theme(fig) fig.update_layout(height=145, margin=dict(l=15, r=15, t=5, b=5)) return fig def factors_chart(factors): "" "Create a compact ranked visual for explanation factors with shortened clean labels." ""
+short_factors=[] for f in factors: # Extract title chunk before ' — ' or ' (' for clean y-axis representation label=f.split(" (")[0].split(" — ")[0] if len(label) > 28: label=label[:25] + "..."
+
+short_factors.append(label) scores=list(range(len(factors), 0, -1)) fig=px.bar(x=scores,
+    y=short_factors,
+    orientation="h",
+    labels= {
+        "x": "Relative priority", "y": "Risk factor"
+    }
+
+    ,
+    color=scores,
+    color_continuous_scale="Blues",
+) apply_plotly_theme(fig) fig.update_layout(height=150, coloraxis_showscale=False) fig.update_yaxes(showgrid=False) # Horizontal bar layout only wants vertical grids fig.update_xaxes(showgrid=True) return fig def individual_shap_waterfall(model, preprocessor, feature_names, customer_data): "" "Build a premium interactive Plotly waterfall chart showing local risk contributions." ""
+
+try: # Preprocess customer record df=prepare_customer_frame(customer_data) X_trans=preprocessor.transform(df) import scipy.sparse if scipy.sparse.issparse(X_trans): X_trans=X_trans.toarray() X_df=pd.DataFrame(X_trans, columns=feature_names, index=df.index) coefs=model.coef_[0] intercept=model.intercept_[0] # Calculate contribution to log-odds: coefficient * scaled value contributions=X_df.iloc[0].values * coefs # Create a contributions dataframe contrib_df=pd.DataFrame({
+    "feature": feature_names,
+    "value": X_df.iloc[0].values,
+    "contribution": contributions,
+    "abs_contrib": np.abs(contributions)
+}) # Filter out features with near-zero contributions to keep plot clean contrib_df=contrib_df[contrib_df["abs_contrib"] > 1e-4] # Sort by absolute contribution descending and take the top 8 contrib_df=contrib_df.sort_values(by="abs_contrib", ascending=False).head(8) # Reverse to draw from base towards final prediction contrib_df=contrib_df.iloc[::-1] # Prepare list for waterfall chart y_labels=["Baseline (Intercept)"] x_vals=[intercept] measures=["absolute"] # Base probability calculation base_prob=1.0 / (1.0 + np.exp(-intercept)) text_labels=[f"Prob: {base_prob:.1%}"] cumulative_z=intercept for _, row in contrib_df.iterrows(): feat_name=row["feature"].replace("_", " ").replace("remainder  ", "").replace("remainder ", "") if len(feat_name) > 25: feat_name=feat_name[:22] + "..."
+
+val=row["value"] # Clean label for binary features vs numerical features if val in (0.0, 1.0): label=f"{feat_name}"
+else: label=f"{feat_name} ({val:.1f})"
+
+y_labels.append(label) x_vals.append(row["contribution"]) measures.append("relative") cumulative_z +=row["contribution"] step_prob=1.0 / (1.0 + np.exp(-cumulative_z)) text_labels.append(f"{row['contribution']:+.2f} (Prob: {step_prob:.1%})") # Add final prediction total y_labels.append("Final Log-Odds") x_vals.append(cumulative_z) measures.append("total") final_prob=1.0 / (1.0 + np.exp(-cumulative_z)) text_labels.append(f"Prob: {final_prob:.1%}") fig=go.Figure(go.Waterfall(orientation="h",
+        measure=measures,
+        y=y_labels,
+        x=x_vals,
+        text=text_labels,
+        textposition="outside",
+        connector= {
+            "line": {
+                "color": "rgba(255, 255, 255, 0.2)", "width": 1
+            }
+        }
+
+        ,
+        decreasing= {
+            "marker": {
+                "color": "#34D399"
+            }
+        }
+
+        , # Green for reducing risk increasing= {
+            "marker": {
+                "color": "#F87171"
+            }
+        }
+
+        , # Red for increasing risk totals= {
+            "marker": {
+                "color": "#22D3EE"
+            }
+        }
+
+        , # Cyan for final)) fig.update_layout(waterfallgap=0.2,
+    height=380,
+    margin=dict(l=10, r=10, t=10, b=10),
+    xaxis=dict(title="Contribution to Log-Odds of Churn"),
+) apply_plotly_theme(fig) return fig except Exception as exc: # Fallback empty figure with error message. Logged (not just shown # inline) because a silently-empty waterfall chart is easy to miss # during manual QA but should still be investigated. logger.exception("Failed to build local SHAP-style waterfall chart: %s", exc) fig=go.Figure() fig.update_layout(title=f"Error generating waterfall: {exc}",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)"
+) return fig def render_explain_ai(model, preprocessor, feature_names): "" "Render the Explain AI dashboard tab." ""
+
+st.markdown("" "
+ <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.1rem;" > <h2 style="color: #EDEFF5; font-size: 1.04rem; font-weight: 800; margin: 0; letter-spacing: -0.01em;" >Prediction Diagnostics</h2> </div> "" ",
+ unsafe_allow_html=True,
+) st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True) # Section 1: Individual Prediction Explanation (Waterfall) st.markdown("<div class='panel'>", unsafe_allow_html=True) st.markdown("<h4 class='panel-title' style='color: #22D3EE; font-size: 1.05rem;'>Individual Prediction Explanation</h4>", unsafe_allow_html=True) if st.session_state.prediction_result and st.session_state.prediction_customer: res=st.session_state.prediction_result cust=st.session_state.prediction_customer st.markdown(f"" "
+ <div style="font-size: 0.8rem; margin-bottom: 0.6rem; line-height: 1.35; color: #EDEFF5;" > Feature impacts are shown as positive or negative contributions to the churn score for <strong> {
+        res['churn_probability']:.1%
+    }
+
+    </strong> probability. </div> "" ",
+ unsafe_allow_html=True) fig=individual_shap_waterfall(model, preprocessor, feature_names, cust) st.plotly_chart(fig, use_container_width=True) st.markdown(f"" "
+ <div style="background: rgba(255,255,255,0.03); padding: 0.55rem 0.7rem; border-radius: 8px; border-left: 3px solid #22D3EE; font-size: 0.76rem; color: #C4CAD9; line-height: 1.35; margin-top: 0.4rem;" > <strong>Action:</strong> {
+        res['recommended_action']
+    }
+
+    </div> "" ",
+ unsafe_allow_html=True) else: st.markdown("" "
+ <div style="text-align: center; padding: 2rem 1rem; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.1);" > <p style="color: #8890A6; font-size: 0.82rem; margin: 0;" > No active prediction session found. Go to the <strong>Predictive Analysis</strong> tab, set a customer profile in the <strong>Filter Drawer</strong>, and click <strong>Run Risk Prediction</strong> to visualize their individual waterfall breakdown here. </p> </div> "" ",
+ unsafe_allow_html=True) st.markdown("</div>", unsafe_allow_html=True) st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True) # Section 2: Global Model Explainability (SHAP Summary and Feature Importance) col1, col2=st.columns(2, gap="small", vertical_alignment="top") with col1: st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 390px !important;'>", unsafe_allow_html=True) st.markdown("<h4 class='panel-title'>Risk drivers</h4>", unsafe_allow_html=True) st.markdown("" "
+ <p style="font-size: 0.72rem; color: #8890A6; line-height: 1.3; margin: 0 0 0.25rem 0;" > Feature values that consistently increase or reduce modeled churn risk. </p> "" ",
+ unsafe_allow_html=True) import os if os.path.exists("outputs/plots/shap_summary_plot.png"): st.image("outputs/plots/shap_summary_plot.png", use_container_width=True) else: st.warning("SHAP Summary Plot not found at outputs/plots/shap_summary_plot.png") st.markdown("</div>", unsafe_allow_html=True) with col2: st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 390px !important;'>", unsafe_allow_html=True) st.markdown("<h4 class='panel-title'>Feature impact</h4>", unsafe_allow_html=True) st.markdown("" "
+ <p style="font-size: 0.72rem; color: #8890A6; line-height: 1.3; margin: 0 0 0.25rem 0;" > Average influence of each feature on the model's predictions.
+ </p> "" ",
+ unsafe_allow_html=True) if os.path.exists("outputs/plots/shap_feature_importance_plot.png"): st.image("outputs/plots/shap_feature_importance_plot.png", use_container_width=True) else: st.warning("SHAP Feature Importance Plot not found at outputs/plots/shap_feature_importance_plot.png") st.markdown("</div>", unsafe_allow_html=True) def format_saas_recommendation(item): "" "Format campaign or recommended intervention string into a structured SaaS-like layout dict." ""
+if ":" in item: title, desc=item.split(": ", 1) else: title, desc="Account Outreach Action", item icon=""
+benefit="Stabilizes customer relationship"
+
+if "Month-to-Year" in title or "Contract" in title: icon=""
+benefit="Secures contract commitment (saves $780 ARPU)"
+elif "Fiber" in title: icon=""
+benefit="Retains premium Fiber margin segment"
+elif "Auto-Pay" in title: icon=""
+benefit="Resolves manual billing payment frictions"
+elif "Early-Tenure" in title: icon=""
+benefit="Improves welcome phase customer retention"
+elif "Proactive" in title: icon=""
+benefit="Proactive save (5% statement offset)"
+
+return {
+    "icon": icon,
+    "title": title,
+    "description": desc,
+    "benefit": benefit
+}
+
+
+def report_dataframe(customer, result, roi, campaign): "" "Create a one-row downloadable prediction report." ""
+
+return pd.DataFrame([ {
+        "generated_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
+        "churn_probability": result["churn_probability"],
+        "risk_tier": result["risk_tier"],
+        "churn_prediction": result["churn_prediction"],
+        "model_confidence": result["model_confidence"],
+        "customer_lifetime_value": result["clv"],
+        "expected_saved_value": roi["expected_saved_value"],
+        "offer_cost": roi["offer_cost"],
+        "estimated_net_roi": roi["net_roi"],
+        "campaign": campaign,
+        "recommended_action": result["recommended_action"],
+        "top_risk_factors": " | " .join(result["top_risk_factors"]),
+        **customer,
+    }
+
+    ]) def render_metric_card_component(label, value, accent, badge_html, element_id, value_color=None, prefix="", suffix="", numeric_target=None): "" "Render a compact KPI card with subtle number-count animation." ""
+if numeric_target is None: display_value=value script=""
+else: display_value=f"{prefix}{value}{suffix}"
+
+script=f"" "
+ <script> (function() {
+            {
+            const el=document.getElementById('{element_id}');
+            if ( !el) return;
+
+            const target= {
+                numeric_target
+            }
+
+            ;
+            const prefix='{prefix}';
+            const suffix='{suffix}';
+            const duration=700;
+            const start=performance.now();
+
+            const format=(num)=> {
+                    {
+                    if (Number.isInteger(target)) {
+                            {
+                            return prefix + Math.round(num).toLocaleString() + suffix;
+                        }
+                    }
+
+                    return prefix + num.toFixed(1) + suffix;
+                }
+            }
+
+            ;
+
+            const tick=(now)=> {
+                    {
+                    const progress=Math.min((now - start) / duration, 1);
+                    const eased=1 - Math.pow(1 - progress, 3);
+                    el.textContent=format(target * eased);
+                    if (progress < 1) requestAnimationFrame(tick);
+                }
+            }
+
+            ;
+            requestAnimationFrame(tick);
+        }
+    })();
+</script> "" "
+
+html=f"" "
+ <style>
