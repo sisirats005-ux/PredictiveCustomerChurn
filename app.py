@@ -1,6 +1,21 @@
-"""Enterprise Streamlit dashboard for ConnectTel churn prediction."""
+"""
+Enterprise Streamlit dashboard for ConnectTel churn prediction ("ConnectTel
+AI Churn Studio").
+
+Renders three screens (routed via `st.session_state.active_tab`, see the
+"MAIN PAGE RENDER" section at the bottom of this file):
+  - Predict:             single-customer scoring form + result panels.
+  - Explain:              coefficient-based local explanation + offline SHAP plots.
+  - Executive Dashboard:  portfolio-wide batch scoring and ROI summary.
+
+All inference goes through `src.predict.predict_churn`, which loads
+`models/logistic_regression_model.joblib` -- this file only handles
+presentation, input collection, and layout. See README.md, Section 5
+("Production & MLOps Infrastructure") for the full architecture.
+"""
 
 import json
+import logging
 import os
 import time
 from datetime import UTC, datetime
@@ -27,9 +42,17 @@ from src.business_rules import (
 from src.feature_engineering import create_features
 from src.predict import get_decision_threshold, load_artifacts, predict_churn, prepare_customer_frame
 from src.preprocessing import clean_data, load_data
-from src.utils import load_config
+from src.utils import load_config, setup_logger
 
 st.set_page_config(page_title="ConnectTel AI Churn Studio", layout="wide", initial_sidebar_state="expanded")
+
+# Module-level logger: mirrors the training-pipeline logger convention in
+# src/utils.py (console + reports/pipeline.log) so Streamlit-side failures
+# (model load errors, per-customer inference errors, executive dashboard
+# batch-scoring errors) land in the same log trail as the training run,
+# instead of only ever being visible to whoever is looking at the browser
+# tab when the error banner renders.
+logger = setup_logger(name="churn_project.app")
 
 RISK_ORDER = ["Low", "Medium", "High"]
 DEFAULT_CUSTOMER = {
@@ -441,7 +464,89 @@ _BASE_CSS = """
         from { opacity: 0; transform: translateY(6px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    
+
+    /* ============================================================
+       UI/UX POLISH LAYER (visual-only, no logic/state touched)
+       Responsive container, tighter/consistent spacing, equal-height
+       metric rows, no-wrap buttons, nav alignment, type hierarchy.
+       ============================================================ */
+
+    /* 4. Center everything inside a responsive max-width column */
+    .main .block-container {
+        max-width: 1440px !important;
+    }
+    @media (max-width: 1500px) {
+        .main .block-container { max-width: 96vw !important; }
+    }
+
+    /* 1. Responsive columns: let Streamlit's horizontal blocks wrap
+       instead of squeezing on narrow / tablet viewports */
+    @media (max-width: 900px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            min-width: 100% !important;
+            flex: 1 1 100% !important;
+        }
+        section[data-testid="stSidebar"] {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+        }
+    }
+
+    /* 8. Equal-height metric/KPI cards: stretch columns so every card
+       in a row matches the tallest sibling, and make the card itself
+       fill that height */
+    div[data-testid="stHorizontalBlock"] {
+        align-items: stretch !important;
+    }
+    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    div[data-testid="stColumn"] > div,
+    div[data-testid="stColumn"] > div > div[data-testid="stVerticalBlock"] {
+        height: 100% !important;
+    }
+    .kpi-card-horizontal, .roi-card {
+        height: 100% !important;
+    }
+
+    /* 7. Prevent button label wrapping across all buttons */
+    div.stButton > button,
+    div[data-testid="stFormSubmitButton"] > button,
+    div[data-testid="stDownloadButton"] > button,
+    button[data-testid^="stBaseButton"] {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* 6. Navbar alignment: keep brand/tabs/avatar vertically centered
+       and evenly balanced at any width */
+    .nav-header-row {
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+    }
+    @media (max-width: 900px) {
+        .nav-header-row { flex-wrap: wrap !important; row-gap: 0.5rem !important; }
+    }
+
+    /* 9. Consistent breathing room between stacked dashboard sections */
+    div[data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"] {
+        margin-bottom: 0.55rem !important;
+    }
+    .section-gap {
+        height: 0.9rem !important;
+    }
+
+    /* 5. Typography hierarchy pass */
+    h1 { font-size: 1.7rem !important; font-weight: 800 !important; letter-spacing: -0.02em !important; }
+    h2 { font-size: 1.25rem !important; font-weight: 800 !important; letter-spacing: -0.01em !important; }
+    h3 { font-size: 1.05rem !important; font-weight: 700 !important; }
+
     /* Heading styling */
     h4, h5 {
         font-family: 'Inter', sans-serif !important;
@@ -476,7 +581,7 @@ _BASE_CSS = """
         align-items: center !important;
         justify-content: space-between !important;
         gap: 0.55rem !important;
-        height: 82px !important;
+        height: 62px !important;
         width: 100% !important;
         box-sizing: border-box !important;
         transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease, opacity 0.35s ease !important;
@@ -1302,7 +1407,10 @@ def individual_shap_waterfall(model, preprocessor, feature_names, customer_data)
         apply_plotly_theme(fig)
         return fig
     except Exception as exc:
-        # Fallback empty figure with error message
+        # Fallback empty figure with error message. Logged (not just shown
+        # inline) because a silently-empty waterfall chart is easy to miss
+        # during manual QA but should still be investigated.
+        logger.exception("Failed to build local SHAP-style waterfall chart: %s", exc)
         fig = go.Figure()
         fig.update_layout(
             title=f"Error generating waterfall: {exc}",
@@ -1370,7 +1478,7 @@ def render_explain_ai(model, preprocessor, feature_names):
     # Section 2: Global Model Explainability (SHAP Summary and Feature Importance)
     col1, col2 = st.columns(2, gap="small", vertical_alignment="top")
     with col1:
-        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 520px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 390px !important;'>", unsafe_allow_html=True)
         st.markdown("<h4 class='panel-title'>Risk drivers</h4>", unsafe_allow_html=True)
         st.markdown(
             """
@@ -1388,7 +1496,7 @@ def render_explain_ai(model, preprocessor, feature_names):
         st.markdown("</div>", unsafe_allow_html=True)
         
     with col2:
-        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 520px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='padding-bottom: 0.7rem !important; min-height: 390px !important;'>", unsafe_allow_html=True)
         st.markdown("<h4 class='panel-title'>Feature impact</h4>", unsafe_allow_html=True)
         st.markdown(
             """
@@ -1508,7 +1616,7 @@ def render_metric_card_component(label, value, accent, badge_html, element_id, v
         align-items: center;
         justify-content: space-between;
         gap: 0.55rem;
-        height: 82px;
+        height: 62px;
         width: 100%;
         box-sizing: border-box;
         color: #EDEFF5;
@@ -1628,7 +1736,7 @@ def render_prediction_result(result, customer):
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     row2_left, row2_right = st.columns([0.45, 0.55], gap="small")
     with row2_left:
-        st.markdown("<div class='panel' style='min-height: 185px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 140px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Risk gauge</h5>", unsafe_allow_html=True)
         st.plotly_chart(probability_gauge(probability, result["decision_threshold"]), width="stretch", config={'responsive': True})
         pred_label = "CHURN (High Churn Risk)" if result['churn_prediction'] == 1 else "RETAIN (Low Churn Risk)"
@@ -1642,7 +1750,7 @@ def render_prediction_result(result, customer):
         )
         st.markdown("</div>", unsafe_allow_html=True)
     with row2_right:
-        st.markdown("<div class='panel' style='min-height: 185px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 140px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Profile</h5>", unsafe_allow_html=True)
         chips = [
             f"Persona: {result['persona']}",
@@ -1658,14 +1766,14 @@ def render_prediction_result(result, customer):
     # Row 3: SHAP Feature Importance (left 45%) and CRM Recommendation Timeline (right 55%) side-by-side (equal height)
     row3_left, row3_right = st.columns([0.45, 0.55], gap="small")
     with row3_left:
-        st.markdown("<div class='panel' style='min-height: 210px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 158px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Drivers</h5>", unsafe_allow_html=True)
         st.plotly_chart(factors_chart(result["top_risk_factors"]), width="stretch", config={'responsive': True})
         drivers_html = " ".join([f"<span class='mini-badge'>{factor}</span>" for factor in result["top_risk_factors"][:3]])
         st.markdown(f"<div class='ai-summary-row'>{drivers_html}</div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     with row3_right:
-        st.markdown("<div class='panel' style='min-height: 210px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 158px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Retention plan</h5>", unsafe_allow_html=True)
         strategy_cards = [
             {
@@ -1935,7 +2043,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with k1:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #22D3EE !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 94px;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #22D3EE !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 71px;">
                 <div class="kpi-metric-name">Customer Base</div>
                 <div class="kpi-metric-value" style="color: #22D3EE; font-size: 1.45rem; font-weight: 800;">{total_customers:,}</div>
                 <div style="font-size: 0.72rem; color: #8890A6; margin-top: 0.2rem;">Total active subscribers</div>
@@ -1946,7 +2054,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with k2:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #EF4444 !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 94px;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #EF4444 !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 71px;">
                 <div class="kpi-metric-name">High Risk Customers</div>
                 <div class="kpi-metric-value" style="color: #EF4444; font-size: 1.45rem; font-weight: 800;">{tier_counts["High"]:,}</div>
                 <div style="font-size: 0.72rem; color: #8890A6; margin-top: 0.2rem;">{high_risk_pct:.1%} of customer base</div>
@@ -1957,7 +2065,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with k3:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #F59E0B !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 94px;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #F59E0B !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 71px;">
                 <div class="kpi-metric-name">Recommended Retention List</div>
                 <div class="kpi-metric-value" style="color: #F59E0B; font-size: 1.45rem; font-weight: 800;">{flagged_churners:,}</div>
                 <div style="font-size: 0.72rem; color: #8890A6; margin-top: 0.2rem;">{retention_pct:.1%} targeted for outreach</div>
@@ -1968,7 +2076,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with k4:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #10B981 !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 94px;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #10B981 !important; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; height: 71px;">
                 <div class="kpi-metric-name">Projected Revenue Saved</div>
                 <div class="kpi-metric-value" style="color: #10B981; font-size: 1.45rem; font-weight: 800;">${roi["revenue_saved"]:,.0f}</div>
                 <div style="font-size: 0.72rem; color: #8890A6; margin-top: 0.2rem;">Based on 25% campaign conversion</div>
@@ -2024,7 +2132,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     chart1, chart2 = st.columns([1, 1], gap="small")
     with chart1:
-        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Customer Risk Segmentation</h5>", unsafe_allow_html=True)
         fig = px.pie(
             names=tier_counts.index,
@@ -2038,7 +2146,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
         st.plotly_chart(fig, width="stretch", config={'responsive': True})
         st.markdown("</div>", unsafe_allow_html=True)
     with chart2:
-        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Predicted Churn Score Distribution</h5>", unsafe_allow_html=True)
         hist = px.histogram(
             scored,
@@ -2057,7 +2165,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     st.markdown("<div class='section-gap'></div>", unsafe_allow_html=True)
     chart3, chart4 = st.columns([1, 1], gap="small")
     with chart3:
-        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Customer Risk Segmentation by Contract Type</h5>", unsafe_allow_html=True)
         segment = (
             scored.groupby(["Contract", "risk_tier"], observed=False)
@@ -2077,7 +2185,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
         st.plotly_chart(fig_segment, width="stretch", config={'responsive': True})
         st.markdown("</div>", unsafe_allow_html=True)
     with chart4:
-        st.markdown("<div class='panel' style='min-height: 235px !important;'>", unsafe_allow_html=True)
+        st.markdown("<div class='panel' style='min-height: 176px !important;'>", unsafe_allow_html=True)
         st.markdown("<h5 class='panel-title'>Customer Risk Segmentation by Internet Service</h5>", unsafe_allow_html=True)
         segment_internet = (
             scored.groupby(["InternetService", "risk_tier"], observed=False)
@@ -2105,7 +2213,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with r1:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #EF4444 !important; height: 74px !important;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #EF4444 !important; height: 56px !important;">
                 <div>
                     <div class="kpi-metric-name">Est. True Churners</div>
                     <div class="kpi-metric-value" style="color: #EF4444; font-size: 1.1rem;">${roi["estimated_true_churners"]:,.0f}</div>
@@ -2117,7 +2225,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with r2:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #10B981 !important; height: 74px !important;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #10B981 !important; height: 56px !important;">
                 <div>
                     <div class="kpi-metric-name">Customers Retained</div>
                     <div class="kpi-metric-value" style="color: #10B981; font-size: 1.1rem;">{roi["customers_retained"]:,.0f}</div>
@@ -2129,7 +2237,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with r3:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #10B981 !important; height: 74px !important;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #10B981 !important; height: 56px !important;">
                 <div>
                     <div class="kpi-metric-name">Revenue Saved</div>
                     <div class="kpi-metric-value" style="color: #10B981; font-size: 1.1rem;">${roi["revenue_saved"]:,.0f}</div>
@@ -2141,7 +2249,7 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     with r4:
         st.markdown(
             f"""
-            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #F59E0B !important; height: 74px !important;">
+            <div class="kpi-card-horizontal" style="box-shadow: none !important; border: 1px solid rgba(255,255,255,0.08) !important; border-left: 3px solid #F59E0B !important; height: 56px !important;">
                 <div>
                     <div class="kpi-metric-name">Campaign Cost</div>
                     <div class="kpi-metric-value" style="color: #FBBF24; font-size: 1.1rem;">${roi["campaign_cost"]:,.0f}</div>
@@ -2176,6 +2284,7 @@ if "active_tab" not in st.session_state:
 try:
     model, preprocessor, feature_names = get_artifacts()
 except Exception as exc:  # noqa: BLE001
+    logger.critical("Fatal startup error: could not load model artifacts: %s", exc)
     st.error(f"Model artifacts missing: {exc}")
     st.stop()
 
@@ -2216,8 +2325,14 @@ if submitted:
         progress_bar.progress(1.0)
         time.sleep(0.25)
     except ValueError as exc:
+        # Expected input-validation failure (e.g. malformed form data) --
+        # logged at INFO since it's a user-input issue, not a system fault.
+        logger.info("Prediction rejected due to invalid input: %s", exc)
         st.warning(str(exc))
     except Exception as exc:  # noqa: BLE001
+        # Unexpected failure in the inference pipeline -- logged with full
+        # traceback since this indicates a real bug or environment problem.
+        logger.exception("Unexpected error while scoring a customer: %s", exc)
         st.error(f"Inference failed: {exc}")
 
 # ==============================================================================
@@ -2317,4 +2432,5 @@ else:
         try:
             render_executive_dashboard(model, preprocessor, feature_names, decision_threshold)
         except Exception as exc:  # noqa: BLE001
+            logger.exception("Executive dashboard batch-scoring failed: %s", exc)
             st.error(f"Could not render executive portfolio: {exc}")

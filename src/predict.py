@@ -15,11 +15,28 @@ import numpy as np
 
 from src.business_rules import confidence_score
 from src.feature_engineering import create_features
+from src.utils import setup_logger
+
+logger = setup_logger(name="churn_project.predict")
 
 MODEL_PATH = "models/logistic_regression_model.joblib"
 PREPROCESSOR_PATH = "models/preprocessing_pipeline.joblib"
 FEATURE_NAMES_PATH = "models/feature_names.joblib"
 METADATA_PATH = "models/logistic_regression_metadata.json"
+
+
+def _trained_sklearn_version(metadata_path=METADATA_PATH):
+    """Best-effort read of the scikit-learn version recorded at training time.
+
+    Returns None (never raises) if the metadata file is missing or malformed
+    -- callers use this only to enrich human-readable error messages, so a
+    lookup failure here should never mask the original error.
+    """
+    try:
+        with open(metadata_path, "r") as f:
+            return json.load(f).get("sklearn_version")
+    except Exception:
+        return None
 
 
 def _validate_runtime_compatibility(metadata_path=METADATA_PATH):
@@ -44,6 +61,10 @@ def _validate_runtime_compatibility(metadata_path=METADATA_PATH):
     trained_version = meta.get("sklearn_version")
     installed_version = sklearn.__version__
     if trained_version and trained_version != installed_version:
+        logger.error(
+            "scikit-learn version mismatch: model trained with %s, runtime has %s.",
+            trained_version, installed_version,
+        )
         raise RuntimeError(
             "Model artifact/runtime mismatch: "
             f"models/logistic_regression_model.joblib was trained with scikit-learn {trained_version}, "
@@ -88,6 +109,7 @@ def load_artifacts(model_path=MODEL_PATH, preprocessor_path=PREPROCESSOR_PATH,
     """
     missing = [p for p in (model_path, preprocessor_path, feature_names_path) if not os.path.exists(p)]
     if missing:
+        logger.critical("Missing required model artifact(s): %s", ", ".join(missing))
         raise FileNotFoundError(
             "Missing required model artifact(s): " + ", ".join(missing) +
             ". Ensure the `models/` folder contains the trained Logistic "
@@ -102,13 +124,20 @@ def load_artifacts(model_path=MODEL_PATH, preprocessor_path=PREPROCESSOR_PATH,
         feature_names = joblib.load(feature_names_path)
         _validate_loaded_artifacts(model, preprocessor, feature_names)
     except AttributeError as exc:
+        # Read the trained version from metadata rather than hardcoding it
+        # in this message, so the remediation text can never drift out of
+        # sync with the actual pinned requirements.txt / metadata again.
+        trained_version = _trained_sklearn_version()
+        pin_hint = f"scikit-learn=={trained_version}" if trained_version else "the version pinned in requirements.txt"
+        logger.error("Model artifact load failed due to a scikit-learn version mismatch: %s", exc)
         raise RuntimeError(
             "Failed to load model artifacts due to a scikit-learn version "
             f"mismatch ({exc}). Install the exact scikit-learn version listed "
-            "in requirements.txt (scikit-learn==1.4.2), or retrain the model "
+            f"in requirements.txt ({pin_hint}), or retrain the model "
             "with your currently installed scikit-learn version."
         ) from exc
 
+    logger.info("Model artifacts loaded successfully from '%s'.", model_path)
     return model, preprocessor, feature_names
 
 
@@ -131,7 +160,15 @@ def get_decision_threshold(metadata_path=METADATA_PATH):
         with open(metadata_path, "r") as f:
             meta = json.load(f)
         return float(meta["threshold_optimization"]["recommended_threshold"])
-    except Exception:
+    except Exception as exc:
+        # Falling back to the naive 0.5 threshold silently changes business
+        # behavior (see the docstring above), so this is worth a warning
+        # even though it's a recoverable condition.
+        logger.warning(
+            "Could not read optimized decision threshold from '%s' (%s); "
+            "falling back to the naive default of %.2f.",
+            metadata_path, exc, DEFAULT_THRESHOLD,
+        )
         return DEFAULT_THRESHOLD
 
 

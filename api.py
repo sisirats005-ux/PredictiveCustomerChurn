@@ -12,6 +12,9 @@ import uvicorn
 
 from src.business_rules import recommended_interventions
 from src.predict import load_artifacts, predict_churn
+from src.utils import setup_logger
+
+logger = setup_logger(name="churn_project.api")
 
 app = FastAPI(
     title="ConnectTel Churn Prediction API",
@@ -24,10 +27,12 @@ try:
     model, preprocessor, feature_names = load_artifacts()
     MODEL_LOADED = True
     MODEL_LOAD_ERROR = None
+    logger.info("API startup: model artifacts loaded successfully.")
 except Exception as exc:  # noqa: BLE001 - health endpoint reports startup artifact failures.
     model, preprocessor, feature_names = None, None, None
     MODEL_LOADED = False
     MODEL_LOAD_ERROR = str(exc)
+    logger.critical("API startup: model artifacts failed to load, /predict will return 503: %s", exc)
 
 
 class YesNo(str, Enum):
@@ -96,6 +101,13 @@ class CustomerData(BaseModel):
 
 
 class ChurnResponse(BaseModel):
+    # `model_confidence` below triggers a spurious Pydantic UserWarning
+    # ("conflict with protected namespace 'model_'") on every process
+    # startup -- it's a false positive (we don't use Pydantic's own
+    # `model_*` methods on this field), so it's disabled here rather than
+    # renaming the field and breaking the public API contract.
+    model_config = {"protected_namespaces": ()}
+
     churn_probability: float = Field(..., description="Model calculated probability of churn (0.0 to 1.0)")
     churn_prediction: str = Field(..., description="Binary churn decision ('Yes' or 'No')")
     decision_threshold: float = Field(..., description="Decision threshold used for the binary churn prediction")
@@ -145,6 +157,7 @@ def predict(customer: CustomerData):
         return {**scoring, "recommended_interventions": interventions}
 
     except Exception as exc:  # noqa: BLE001 - converts runtime inference issues into API errors.
+        logger.exception("POST /predict failed during inference: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Inference pipeline execution error: {exc}",

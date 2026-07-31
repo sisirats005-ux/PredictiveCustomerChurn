@@ -1,0 +1,24 @@
+# Training, experimentation, offline explainability, and notebook tooling.
+# NOT required to run the deployed Streamlit app (app.py) or the FastAPI
+# service (api.py) -- confirmed by grepping every import reachable from
+# both entrypoints (app.py, api.py, and everything under src/ they call
+# into: business_rules, feature_engineering, predict, preprocessing, utils).
+# None of them import xgboost, shap, matplotlib, seaborn, or mlflow.
+#
+# These packages are only used by:
+#   - src/train.py                      (xgboost, scikit-learn RandomForest/GridSearchCV)
+#   - src/explain.py, src/compare_feature_importance.py  (shap, matplotlib)
+#   - src/generate_eda.py, src/generate_notebook.py       (matplotlib, seaborn, jupyter)
+#   - notebooks/churn_analysis.ipynb, mlflow experiment tracking
+#
+# Install alongside the runtime file for local development:
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+xgboost==2.0.3
+shap==0.45.1
+matplotlib==3.8.4
+seaborn==0.13.2
+mlflow==2.13.0
+jupyter>=1.0.0
+nbconvert>=7.0.0
+ipywidgets>=8.0.0

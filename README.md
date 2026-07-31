@@ -45,7 +45,9 @@ PredictiveCustomerChurn/
 │   │       ├── best_model.joblib
 │   │       ├── preprocessing_pipeline.joblib
 │   │       └── metadata.json
-│   ├── best_model.joblib              # Serialized champion model (Tuned XGBoost)
+│   ├── best_model.joblib              # Evaluation champion (Tuned XGBoost) -- NOT served in production, see Section 7
+│   ├── logistic_regression_model.joblib   # Deployed model -- what app.py / api.py actually score with
+│   ├── logistic_regression_metadata.json  # Trained sklearn version + decision threshold, read by src/predict.py
 │   ├── preprocessing_pipeline.joblib  # Serialized ColumnTransformer preprocessing object
 │   └── feature_names.joblib           # Serialized feature list for deployment
 ├── src/
@@ -75,12 +77,15 @@ PredictiveCustomerChurn/
 ├── reports/
 │   ├── pipeline.log                   # Active pipeline run logs
 │   └── business_insight_report.md     # Retention recommendations and ROI calculations
+├── .streamlit/
+│   └── runtime.txt                    # Pins Python 3.11 for Streamlit Community Cloud (see Section 10)
 ├── config.yaml                        # Central configuration file (hyperparameters, paths)
 ├── app.py                             # Streamlit web interface
 ├── api.py                             # FastAPI REST API deployment
 ├── Dockerfile                         # Containerization config for FastAPI app
 ├── pytest.ini                         # Pytest configuration
-├── requirements.txt                   # Stable dependencies
+├── requirements.txt                   # Runtime dependencies for app.py / api.py (see Section 9)
+├── requirements-dev.txt               # Training/notebook/offline-explainability dependencies (see Section 9)
 └── main.py                            # End-to-end execution script
 ```
 
@@ -198,8 +203,42 @@ Evaluation results obtained on a stratified 20% holdout test set:
 
 ### Selection Rationale
 - We prioritized **Recall** (sensitivity) and **ROC-AUC** over accuracy because the cost of failing to catch a churner (customer loss + CAC re-acquisition) is higher than the cost of a promotional discount extended to a loyal customer.
-- **Tuned XGBoost** achieves **81.3% Recall** and **0.849 Test ROC-AUC**, successfully identifying roughly 4 in 5 churners.
-- **Model Selection Justification**: Although Logistic Regression achieved a slightly higher cross-validated ROC-AUC, Tuned XGBoost was selected because it achieved higher recall (81.3%), captured more potential churners, modeled complex non-linear interactions, and provided richer SHAP explanations. Since customer churn prediction prioritizes identifying at-risk customers, recall and business impact were considered alongside ROC-AUC.
+- **Tuned XGBoost** achieves **81.3% Recall** and **0.849 Test ROC-AUC**, successfully identifying roughly 4 in 5 churners, and is the table's evaluation champion.
+- **Model Selection Justification**: Although Logistic Regression achieved a slightly higher cross-validated ROC-AUC, Tuned XGBoost was selected as the evaluation champion because it achieved higher recall (81.3%), captured more potential churners, modeled complex non-linear interactions, and provided richer SHAP explanations. Since customer churn prediction prioritizes identifying at-risk customers, recall and business impact were considered alongside ROC-AUC.
+
+> **Evaluation champion vs. deployed model.** `models/best_model.joblib` (Tuned XGBoost) is the artifact produced by this evaluation, but the *deployed* model — the one `app.py`, `api.py`, and every prediction in this README actually run — is `models/logistic_regression_model.joblib`. Logistic Regression was chosen for production over the XGBoost champion because its linear coefficients drive the live, dependency-free "Explain AI" waterfall in `app.py` (`individual_shap_waterfall()`, computed directly from `model.coef_` — not a real-time SHAP call), giving every prediction an instant, exactly-reproducible explanation instead of requiring `shap`/`xgboost` at inference time. `src/predict.py` reads `models/logistic_regression_metadata.json` and hard-fails at startup if the installed scikit-learn version doesn't match what that model was trained with — see `_validate_runtime_compatibility()`.
+
+---
+
+## 8. Logging
+
+Every runtime entrypoint (`app.py`, `api.py`, `src/predict.py`) shares one logging convention via `src/utils.py::setup_logger()`: each module gets its own named logger (`churn_project.app`, `churn_project.api`, `churn_project.predict`, ...) writing to both the console and `reports/pipeline.log`, at a level matched to what happened:
+- `CRITICAL` — the service cannot serve predictions at all (model artifacts missing or unloadable at startup).
+- `ERROR` — a scikit-learn version mismatch, or an unexpected failure while scoring a customer.
+- `WARNING` — a recoverable fallback that silently changes behavior (e.g. the optimized decision threshold couldn't be read from metadata, so the app fell back to the naive 0.5 default).
+- `INFO` — expected user-input validation failures, and successful artifact loads.
+
+This means a production incident (for example: the Streamlit dashboard showing a generic "Inference failed" banner) always has a matching traceback in `reports/pipeline.log`, not just whatever text was shown in the browser at that moment.
+
+## 9. Dependency Management: `requirements.txt` vs `requirements-dev.txt`
+
+Runtime dependencies for the deployed services (`app.py` on Streamlit Community Cloud, `api.py` in the Docker container) live in `requirements.txt`. Both entrypoints resolve to `src/predict.py`, which loads only `models/logistic_regression_model.joblib` — so `requirements.txt` is intentionally scoped to what that inference path imports, and `scikit-learn` is pinned to the exact version the artifacts were trained with (see the callout in Section 7).
+
+Training, offline SHAP/plot generation, and notebook tooling (`xgboost`, `shap`, `matplotlib`, `seaborn`, `mlflow`, `jupyter`) live in `requirements-dev.txt` instead, since none of it is imported by the deployed app or API. Install both for local development:
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+## 10. Deployment Notes: Streamlit Community Cloud
+
+`.streamlit/runtime.txt` pins `python-3.11` to match the Python version used by `Dockerfile` and `.github/workflows/ci.yml`, so all three environments run identical interpreter/dependency behavior. Streamlit Community Cloud has a known platform issue where `runtime.txt` is occasionally ignored in favor of a newer default Python — if a deploy log shows a Python version other than 3.11, explicitly select **Python 3.11** in the app's **Advanced settings** at deploy time (this can only be changed by deleting and redeploying the app, not edited in place afterward).
+
+## 11. Known Limitations
+
+- **Explain tab is linear-model-only.** The live per-customer explanation in `app.py` uses the deployed Logistic Regression's coefficients, not the offline SHAP analysis run against the XGBoost champion. The two are directionally consistent (see `reports/business_insight_report.md`) but are not numerically identical.
+- **No batch/async endpoint.** `api.py`'s `POST /predict` scores one customer per request; the Executive Dashboard's portfolio-wide scoring is a Streamlit-only, in-process batch loop, not exposed over the REST API.
+- **No drift monitoring in production.** See "Recommended Next Steps" below (Section 12) for planned follow-up work in this area.
 
 ---
 
@@ -218,7 +257,7 @@ This repository has been reviewed as an end-to-end churn prediction system. The 
 1. Add a lightweight model-card file that records training data date, target definition, validation metrics, threshold policy, limitations, and owner sign-off.
 2. Promote artifacts through an immutable registry path (for example `models/registry/v2/`) and load deployed artifacts by an environment variable such as `MODEL_VERSION`.
 3. Add drift checks for categorical distribution shifts and score distribution shifts before batch outreach campaigns.
-4. Add request/response logging with PII-safe redaction and monitoring around error rates, latency, and score distributions.
+4. ~~Add request/response logging.~~ **Done** — `app.py`, `api.py`, and `src/predict.py` now share a consistent logger (see Section 8). Remaining follow-up: PII-safe redaction on logged request payloads, and latency/error-rate monitoring on top of the existing log stream.
 5. Extend CI to include Docker image build validation when artifact size and CI runtime budgets allow it.
 
 ### Streamlit SaaS Dashboard Upgrade
