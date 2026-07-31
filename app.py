@@ -26,7 +26,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import streamlit.components.v1 as components
-
+from components.sidebar import (
+    render_sidebar_drawer
+)
 from src.business_rules import (
     ANNUAL_VALUE,
     CAC,
@@ -53,6 +55,7 @@ st.set_page_config(page_title="ConnectTel AI Churn Studio", layout="wide", initi
 # instead of only ever being visible to whoever is looking at the browser
 # tab when the error banner renders.
 logger = setup_logger(name="churn_project.app")
+
 
 RISK_ORDER = ["Low", "Medium", "High"]
 DEFAULT_CUSTOMER = {
@@ -86,41 +89,64 @@ LOW_RISK_CUSTOMER = {
     "MonthlyCharges": 55.0,
     "TotalCharges": 2640.0,
 }
-
-    
-      body {{ margin: 0; background: transparent; font-family: 'Inter', sans-serif; }}
-      .kpi-card-horizontal {{
-        background: linear-gradient(180deg, #1E293B 0%, #172033 100%);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-left: 3px solid {accent};
-        border-radius: 12px;
-        padding: 0.55rem 0.8rem;
-        box-shadow: 0 6px 16px -8px rgba(0,0,0,0.45);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.55rem;
-        height: 62px;
-        width: 100%;
-        box-sizing: border-box;
-        color: #EDEFF5;
-        animation: cardFadeIn 0.5s ease both;
-      }}
-      @keyframes cardFadeIn {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-      .kpi-metric-name {{ color: #8890A6; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; line-height: 1.2; }}
-      .kpi-metric-value {{ color: {value_color or '#EDEFF5'}; font-size: 1.35rem; font-weight: 800; margin: 0; line-height: 1.1; font-family: 'JetBrains Mono', 'Inter', monospace; }}
-      .kpi-status-badge {{ display: inline-block; padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; width: fit-content; flex-shrink: 0; }}
-    </style>
-    <div class="kpi-card-horizontal">
-      <div>
-        <div class="kpi-metric-name">{label}</div>
-        <div class="kpi-metric-value" id="{element_id}">{display_value}</div>
-      </div>
-      {badge_html}
-    </div>
-    {script}
+def render_metric_card_component(
+    title,
+    value,
+    accent="#3B82F6",
+    badge="",
+    element_id="metric",
+    value_color="#FFFFFF",
+    prefix="",
+    suffix="",
+    numeric_target=None,
+):
     """
-    components.html(html, height=92, scrolling=False)
+    Render a KPI card.
+    Temporary recovery implementation.
+    """
+
+    st.markdown(
+        f"""
+        <div style="
+            background:#172033;
+            border-left:5px solid {accent};
+            border-radius:12px;
+            padding:18px;
+            margin-bottom:12px;
+            box-shadow:0 6px 20px rgba(0,0,0,.25);
+        ">
+
+            <div style="
+                font-size:12px;
+                color:#94A3B8;
+                font-weight:600;
+                letter-spacing:.05em;
+                text-transform:uppercase;
+            ">
+                {title}
+            </div>
+
+            <div style="
+                margin-top:8px;
+                font-size:30px;
+                font-weight:700;
+                color:{value_color};
+            ">
+                {value}
+            </div>
+
+            <div style="
+                margin-top:6px;
+                color:#CBD5E1;
+                font-size:12px;
+            ">
+                {badge}
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_kpi_cards(result=None, customer=None):
@@ -600,6 +626,20 @@ def render_executive_dashboard(model, preprocessor, feature_names, decision_thre
     st.markdown("</div>", unsafe_allow_html=True)  # close .bi-report-container
 
 
+def _apply_profile_to_widgets(profile: dict):
+    """
+    Copy a customer profile into Streamlit session_state
+    so all sidebar widgets display the selected profile.
+    """
+
+    if profile is None:
+        return
+
+    st.session_state.customer_defaults = profile.copy()
+
+    for key, value in profile.items():
+        st.session_state[key] = value
+
 # Initialize defaults in session state if not already set
 if "customer_defaults" not in st.session_state:
     st.session_state.customer_defaults = DEFAULT_CUSTOMER.copy()
@@ -615,7 +655,7 @@ if "active_tab" not in st.session_state:
 
 # Load model parameters
 try:
-    model, preprocessor, feature_names = get_artifacts()
+    model, preprocessor, feature_names = load_artifacts()
 except Exception as exc:  # noqa: BLE001
     logger.critical("Fatal startup error: could not load model artifacts: %s", exc)
     st.error(f"Model artifacts missing: {exc}")
@@ -623,8 +663,13 @@ except Exception as exc:  # noqa: BLE001
 
 decision_threshold = get_decision_threshold()
 
-# Render Sidebar Collapsible Filter Drawer (Fabric Style)
-submitted = render_sidebar_drawer(get_model_metadata(), decision_threshold)
+submitted = render_sidebar_drawer(
+    {},
+    decision_threshold,
+    lambda: None,
+    lambda: None,
+    lambda: None,
+)
 
 # Form Submission Processing
 if submitted:

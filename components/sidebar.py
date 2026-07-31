@@ -91,16 +91,6 @@ def render_sidebar_drawer(
                 key="contract",
             )
 
-            st.selectbox(
-                "Internet Service",
-                [
-                    "DSL",
-                    "Fiber optic",
-                    "No",
-                ],
-                key="internet_service",
-            )
-
         # ===================================================
         # Demographics
         # ===================================================
